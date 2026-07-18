@@ -75,9 +75,9 @@ export default async function ResumenPage() {
               <div key={c.id} className={`flex items-center gap-3 px-4 py-3 text-[14px] ${i ? "border-t border-line" : ""}`}>
                 <span className="w-[64px] flex-none text-brand">{fechaCorta(c.fecha)}</span>
                 <span className="w-[48px] flex-none text-body">{c.hora.slice(0, 5)}</span>
-                <span className="flex-1 text-ink">{c.nombre}</span>
+                <span className="min-w-0 flex-1 truncate text-ink">{c.nombre}</span>
                 {c.estado === "pendiente" && (
-                  <span className="rounded-full bg-[#fdf3e2] px-2 py-0.5 text-[11px] text-[#a87b25]">por confirmar</span>
+                  <span className="flex-none whitespace-nowrap rounded-full bg-[#fdf3e2] px-2 py-0.5 text-[11px] text-[#a87b25]">por confirmar</span>
                 )}
               </div>
             ))}
@@ -96,10 +96,10 @@ export default async function ResumenPage() {
           <div className="overflow-hidden rounded-[14px] border border-line bg-white">
             {ordenes.map((o, i) => (
               <div key={o.id} className={`flex items-center gap-3 px-4 py-3 text-[14px] ${i ? "border-t border-line" : ""}`}>
-                <span className="flex-1 text-ink">{o.recursos?.titulo ?? "—"}</span>
-                <span className="text-body">{o.comprador_nombre}</span>
-                <span className="w-[70px] text-right text-body">${o.monto}</span>
-                <span className="w-[80px] text-right text-[12px] text-muted">{o.metodo_pago}</span>
+                <span className="min-w-0 flex-1 truncate text-ink">{o.recursos?.titulo ?? "—"}</span>
+                <span className="hidden min-w-0 flex-1 truncate text-body sm:block">{o.comprador_nombre}</span>
+                <span className="flex-none text-right text-body">${o.monto}</span>
+                <span className="hidden w-[80px] flex-none text-right text-[12px] text-muted sm:block">{o.metodo_pago}</span>
               </div>
             ))}
           </div>

@@ -29,7 +29,7 @@ const items = [
 export function SidebarNav() {
   const path = usePathname();
   return (
-    <nav className="flex gap-1 overflow-x-auto sm:flex-col sm:overflow-visible">
+    <nav className="flex flex-col gap-1">
       {items.map((it) => {
         const active =
           it.href === "/admin" ? path === "/admin" : path.startsWith(it.href);
