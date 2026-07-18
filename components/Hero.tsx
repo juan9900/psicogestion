@@ -12,9 +12,8 @@ export function Hero() {
           equilibrio
         </h1>
         <p className="mt-[22px] max-w-[46ch] text-[18px] leading-[1.6] text-body">
-          Psicóloga clínica en Maracaibo. Terapia para adultos, adolescentes y
-          niños, con consultas presenciales en Maracaibo y sesiones de
-          psicología online donde estés.
+          Acompaño a adultos, adolescentes y niños con terapia presencial y
+          sesiones online, donde te sientas más cómodo.
         </p>
         <div className="mt-[30px] flex flex-wrap items-center gap-[14px]">
           <a

@@ -116,7 +116,7 @@ export function BookingSection() {
             Agenda tu hora
           </h2>
           <p className="text-[16px] text-body">
-            Reserva tu consulta de psicología en Maracaibo o tu sesión online.
+            Reserva tu consulta presencial o tu sesión online.
             Responde tres preguntas y Carmen confirmará tu cita por correo.
           </p>
         </div>

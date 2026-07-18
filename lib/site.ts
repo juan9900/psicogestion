@@ -2,7 +2,7 @@
 export const site = {
   name: "Psico.Gestión",
   profesional: "Carmen Machado",
-  rol: "Psicóloga Clínica en Maracaibo · Consultas presenciales y online",
+  rol: "Psicóloga Clínica · Consultas presenciales y online",
   ubicacion: "Maracaibo, Venezuela",
   instagram: "@psicogestion",
   telefono: "+58 414-6929457",

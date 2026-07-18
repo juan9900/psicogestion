@@ -20,9 +20,8 @@ export function About() {
               Hola, soy Carmen.
             </h2>
             <p className="mb-5 max-w-[46ch] text-[18px] leading-[1.75] text-body-strong">
-              Sé que dar el primer paso no es fácil. Por eso mi consulta de
-              psicología en Maracaibo es un lugar tranquilo y sin juicios, donde
-              puedes llegar tal como estás.
+              Sé que dar el primer paso no es fácil. Por eso mi consulta es un
+              lugar tranquilo y sin juicios, donde puedes llegar tal como estás.
             </p>
             <p className="mb-9 max-w-[46ch] text-[16px] leading-[1.75] text-body">
               Acompaño a adultos, adolescentes y niños en procesos de ansiedad,
@@ -33,7 +32,7 @@ export function About() {
               Carmen Machado
             </div>
             <div className="text-[14px] tracking-[0.02em] text-muted">
-              Psicóloga Clínica en Maracaibo · Consultas presenciales y online
+              Psicóloga Clínica · Consultas presenciales y online
             </div>
           </div>
         </div>
