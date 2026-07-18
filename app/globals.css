@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/*  Design tokens — Psico.Gestión (handoff)                            */
+/* ------------------------------------------------------------------ */
+@theme {
+  /* Fondos */
+  --color-cream: #f6f1ea; /* fondo principal */
+  --color-sand: #efe7db; /* fondo secundario / secciones */
+
+  /* Tinta / texto */
+  --color-ink: #2a2724; /* texto principal */
+  --color-body: #5a544c; /* cuerpo */
+  --color-body-strong: #3f3b34;
+  --color-body-alt: #4a463f;
+  --color-muted: #8a8175;
+  --color-muted-2: #a99f8d;
+  --color-muted-3: #a0967f;
+
+  /* Verde marca */
+  --color-brand: #3f8f79;
+  --color-brand-dark: #357a67;
+  --color-brand-tint: #eef6f2; /* fondo seleccionado claro */
+  --color-brand-light: #7fc0ac; /* verde claro sobre oscuro (footer dot) */
+
+  /* Bordes */
+  --color-line: #e7ded1;
+  --color-line-2: #e0d8cc;
+  --color-line-3: #ddd3c4;
+  --color-line-4: #ece4d7;
+  --color-line-5: #f0eae0;
+
+  /* Estados */
+  --color-disabled-bg: #d8cfbf;
+  --color-disabled-fg: #a99f8d;
+
+  /* Tipografía */
+  --font-serif: var(--font-newsreader), Georgia, serif;
+  --font-sans: var(--font-instrument), system-ui, sans-serif;
+
+  /* Sombra tarjeta flotante */
+  --shadow-card: 0 24px 44px rgba(42, 39, 36, 0.12);
+}
+
+/* Estilos de elementos en @layer base para que las utilidades de Tailwind
+   (text-white, text-body, …) puedan sobrescribirlos. Sin @layer, estas reglas
+   ganarían por estar "sin capa" y anularían los colores de los enlaces. */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  a {
+    color: var(--color-brand);
+    text-decoration: none;
+    transition: opacity 0.15s ease;
+  }
+
+  a:hover {
+    opacity: 0.75;
+  }
+}
+
+/* Scroll horizontal de píldoras de día — scrollbar sutil */
+.scrollx {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
+}
+.scrollx::-webkit-scrollbar {
+  height: 6px;
+}
+.scrollx::-webkit-scrollbar-thumb {
+  background: var(--color-line-2);
+  border-radius: 999px;
+}
+
+/* Placeholder rayado para imágenes (reemplazar por fotos reales) */
+.ph-stripe {
+  background: repeating-linear-gradient(
+    45deg,
+    #e7ded1,
+    #e7ded1 11px,
+    #efe7db 11px,
+    #efe7db 22px
+  );
+}
+.ph-stripe-warm {
+  background: repeating-linear-gradient(
+    45deg,
+    #e2d8c8,
+    #e2d8c8 11px,
+    #ebe2d3 11px,
+    #ebe2d3 22px
+  );
+}
+.ph-stripe-green {
+  background: repeating-linear-gradient(
+    45deg,
+    #357a67,
+    #357a67 11px,
+    #3f8f79 11px,
+    #3f8f79 22px
+  );
+}
