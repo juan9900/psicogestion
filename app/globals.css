@@ -48,6 +48,10 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    /* Blindaje contra scroll horizontal accidental en el sitio. Usamos `clip`
+       (no `hidden`) para no romper `position: sticky` ni crear un contenedor de
+       scroll; los carruseles internos (.scrollx) conservan su propio overflow. */
+    overflow-x: clip;
   }
 
   body {

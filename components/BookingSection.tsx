@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 const MONTHS = [
   "Enero",
@@ -17,7 +18,6 @@ const MONTHS = [
   "Diciembre",
 ];
 const DAYNAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-const TIMES = ["09:00", "10:30", "12:00", "15:00", "16:30", "18:00"];
 
 type Day = {
   key: string; // ISO yyyy-mm-dd — identidad estable
@@ -64,6 +64,44 @@ export function BookingSection() {
   const [motivo, setMotivo] = useState("");
   const [sent, setSent] = useState(false);
 
+  // Horas disponibles reales para el día elegido. Se piden a Supabase
+  // (horarios_disponibles) para reflejar el horario laboral, los bloqueos y las
+  // horas ya ocupadas — así crear_cita nunca rechaza el slot seleccionado.
+  const [times, setTimes] = useState<string[]>([]);
+  const [loadingTimes, setLoadingTimes] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Contador de peticiones: descarta respuestas de un día ya no seleccionado
+  // (evita que un clic rápido A→B muestre las horas de A).
+  const reqRef = useRef(0);
+
+  // Al elegir un día pedimos sus horas reales a Supabase. Se hace aquí (en el
+  // manejador del clic), no en un efecto, porque es una reacción a la acción del
+  // usuario: refleja horario laboral, bloqueos y horas ya ocupadas.
+  const seleccionarDia = (key: string) => {
+    setDateKey(key);
+    setTime("");
+    setError(null);
+    setTimes([]);
+    setLoadingTimes(true);
+    const req = ++reqRef.current;
+    const supabase = createClient();
+    supabase
+      .rpc("horarios_disponibles", { p_fecha: key })
+      .then(({ data, error: rpcError }) => {
+        if (req !== reqRef.current) return; // respuesta obsoleta
+        if (rpcError) {
+          setTimes([]);
+          setError("No pudimos cargar las horas. Inténtalo de nuevo.");
+        } else {
+          const filas = (data ?? []) as { hora: string }[];
+          setTimes(filas.map((r) => r.hora.slice(0, 5)));
+        }
+        setLoadingTimes(false);
+      });
+  };
+
   // Inicializador perezoso: las píldoras de día solo se muestran en el paso 1
   // (post-hidratación), así que calcular con la fecha actual no provoca
   // desajustes de hidratación en el render inicial (paso 0).
@@ -89,10 +127,30 @@ export function BookingSection() {
   const next = () => valid(step) && setStep((s) => Math.min(2, s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
 
-  const confirm = () => {
-    if (!canConfirm) return;
-    // TODO(supabase): persistir la solicitud (fecha, hora, modalidad, datos)
-    // y disparar la notificación por correo a Carmen. Por ahora, estado local.
+  const confirm = async () => {
+    if (!canConfirm || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    const supabase = createClient();
+    const { error: rpcError } = await supabase.rpc("crear_cita", {
+      p_fecha: dateKey,
+      p_hora: time,
+      p_modalidad: modalidad.toLowerCase(), // enum en BD: 'online' | 'presencial'
+      p_nombre: nombre.trim(),
+      p_email: email.trim() || null,
+      p_telefono: tel.trim() || null,
+      p_motivo: motivo.trim() || null,
+    });
+    setSubmitting(false);
+    if (rpcError) {
+      // Mensaje del backend cuando el slot ya no está libre; genérico si no.
+      setError(
+        /disponible|tomada/i.test(rpcError.message)
+          ? "Esa hora ya no está disponible. Elige otra, por favor."
+          : "No se pudo agendar la cita. Inténtalo de nuevo.",
+      );
+      return;
+    }
     setSent(true);
   };
 
@@ -102,10 +160,12 @@ export function BookingSection() {
     setModalidad("Online");
     setDateKey("");
     setTime("");
+    setTimes([]);
     setNombre("");
     setEmail("");
     setTel("");
     setMotivo("");
+    setError(null);
   };
 
   return (
@@ -178,7 +238,7 @@ export function BookingSection() {
                       <button
                         key={d.key}
                         type="button"
-                        onClick={() => setDateKey(d.key)}
+                        onClick={() => seleccionarDia(d.key)}
                         className="flex flex-none cursor-pointer flex-col items-center gap-0.5 rounded-xl border py-3 transition-all"
                         style={{
                           minWidth: 60,
@@ -193,26 +253,40 @@ export function BookingSection() {
                     );
                   })}
                 </div>
-                <div className="grid grid-cols-3 gap-2.5">
-                  {TIMES.map((t) => {
-                    const on = time === t;
-                    return (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setTime(t)}
-                        className="cursor-pointer rounded-[10px] border px-3 py-[9px] text-[14px] transition-all"
-                        style={{
-                          borderColor: on ? "#3f8f79" : "#e0d8cc",
-                          background: on ? "#3f8f79" : "#fff",
-                          color: on ? "#fff" : "#5a544c",
-                        }}
-                      >
-                        {t}
-                      </button>
-                    );
-                  })}
-                </div>
+                {!dateKey ? (
+                  <p className="text-[14px] text-body">
+                    Elige un día para ver las horas disponibles.
+                  </p>
+                ) : loadingTimes ? (
+                  <p className="text-[14px] text-body">Cargando horas…</p>
+                ) : error ? (
+                  <p className="text-[14px] text-[#a33]">{error}</p>
+                ) : times.length === 0 ? (
+                  <p className="text-[14px] text-body">
+                    No quedan horas disponibles ese día. Prueba con otra fecha.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {times.map((t) => {
+                      const on = time === t;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTime(t)}
+                          className="cursor-pointer rounded-[10px] border px-3 py-[9px] text-[14px] transition-all"
+                          style={{
+                            borderColor: on ? "#3f8f79" : "#e0d8cc",
+                            background: on ? "#3f8f79" : "#fff",
+                            color: on ? "#fff" : "#5a544c",
+                          }}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="mt-8 flex justify-between">
                   <BackButton onClick={prev} />
                   <PrimaryButton enabled={valid(1)} onClick={next}>
@@ -254,20 +328,23 @@ export function BookingSection() {
                     className="min-h-20 resize-y rounded-[10px] border border-line-2 px-[15px] py-[13px] text-[15px] text-ink outline-none focus:border-brand"
                   />
                 </div>
+                {error && (
+                  <p className="mt-4 text-[14px] text-[#a33]">{error}</p>
+                )}
                 <div className="mt-[26px] flex justify-between">
                   <BackButton onClick={prev} />
                   <button
                     type="button"
                     onClick={confirm}
-                    disabled={!canConfirm}
+                    disabled={!canConfirm || submitting}
                     className="rounded-full border-none px-7 py-[13px] text-[15px] font-semibold transition-all"
                     style={{
-                      background: canConfirm ? "#3f8f79" : "#d8cfbf",
-                      color: canConfirm ? "#fff" : "#a99f8d",
-                      cursor: canConfirm ? "pointer" : "not-allowed",
+                      background: canConfirm && !submitting ? "#3f8f79" : "#d8cfbf",
+                      color: canConfirm && !submitting ? "#fff" : "#a99f8d",
+                      cursor: canConfirm && !submitting ? "pointer" : "not-allowed",
                     }}
                   >
-                    Confirmar cita
+                    {submitting ? "Agendando…" : "Confirmar cita"}
                   </button>
                 </div>
               </div>
