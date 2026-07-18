@@ -117,7 +117,7 @@ export function BookingSection() {
           </h2>
           <p className="text-[16px] text-body">
             Reserva tu consulta presencial o tu sesión online.
-            Responde tres preguntas y Carmen confirmará tu cita por correo.
+            Responde tres preguntas y te confirmaré tu cita por correo.
           </p>
         </div>
 
@@ -279,7 +279,7 @@ export function BookingSection() {
               ¡Solicitud enviada! 🌿
             </div>
             <p className="mb-2 text-[16px] text-body">
-              Gracias, {nombre}. Carmen te escribirá para confirmar tu cita:
+              Gracias, {nombre}. Te escribiré para confirmar tu cita:
             </p>
             <p className="mb-[26px] text-[16px] font-semibold text-ink">
               {summary}
