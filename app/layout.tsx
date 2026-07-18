@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Newsreader, Instrument_Sans } from "next/font/google";
+import { site } from "@/lib/site";
 import "./globals.css";
 
 const newsreader = Newsreader({
@@ -17,7 +18,7 @@ const instrumentSans = Instrument_Sans({
   display: "swap",
 });
 
-const SITE_URL = "https://psicogestion.com";
+const SITE_URL = site.url;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
