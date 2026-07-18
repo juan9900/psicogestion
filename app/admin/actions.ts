@@ -38,6 +38,7 @@ export async function actualizarEstadoCita(formData: FormData) {
   const estado = String(formData.get("estado")); // 'confirmada' | 'cancelada'
   const supabase = await requireAdmin();
   await supabase.from("citas").update({ estado }).eq("id", id);
+  revalidatePath("/admin/citas");
   revalidatePath("/admin");
 }
 
@@ -48,19 +49,29 @@ export async function actualizarEstadoOrden(formData: FormData) {
   const patch: Record<string, unknown> = { estado };
   if (estado === "pagada") patch.confirmado_at = new Date().toISOString();
   await supabase.from("ordenes").update(patch).eq("id", id);
+  revalidatePath("/admin/ordenes");
   revalidatePath("/admin");
 }
 
 export async function guardarRecurso(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const supabase = await requireAdmin();
-  const datos = {
+
+  const datos: Record<string, unknown> = {
     titulo: String(formData.get("titulo") ?? "").trim(),
     slug: String(formData.get("slug") ?? "").trim(),
     descripcion: String(formData.get("descripcion") ?? "").trim() || null,
     precio_usd: Number(formData.get("precio_usd") ?? 0),
-    activo: formData.get("activo") === "on",
+    activo: ["on", "true"].includes(String(formData.get("activo") ?? "")),
   };
+
+  // Solo sobreescribimos las rutas de archivo si se subió algo nuevo,
+  // para no borrar el PDF/portada existentes al editar solo los datos.
+  const archivo = String(formData.get("archivo_path") ?? "").trim();
+  const imagen = String(formData.get("imagen_path") ?? "").trim();
+  if (archivo) datos.archivo_path = archivo;
+  if (imagen) datos.imagen_path = imagen;
+
   if (id) {
     await supabase.from("recursos").update(datos).eq("id", id);
   } else {
