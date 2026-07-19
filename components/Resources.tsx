@@ -1,10 +1,11 @@
+import Link from "next/link";
 import { ImagePlaceholder } from "./ImagePlaceholder";
 
 export function Resources() {
   return (
     <section
       id="recursos"
-      className="mx-auto max-w-[1120px] px-6 pb-[72px] sm:px-10"
+      className="mx-auto max-w-[1120px] px-6 py-[72px] sm:px-10"
     >
       <div className="grid items-center gap-10 rounded-[18px] bg-brand p-8 text-[#f2f9f6] sm:p-11 md:grid-cols-2">
         <div>
@@ -16,13 +17,12 @@ export function Resources() {
             creados por una psicóloga clínica, listos para descargar y trabajar
             entre sesiones.
           </p>
-          {/* Destino futuro: página propia de plantillas (aún no construida). */}
-          <a
-            href="#recursos"
+          <Link
+            href="/recursos"
             className="inline-block rounded-full bg-cream px-[26px] py-3.5 text-[15px] font-medium text-ink hover:opacity-100 hover:brightness-95 transition"
           >
             Ver plantillas →
-          </a>
+          </Link>
         </div>
         <ImagePlaceholder
           label="imagen recursos"

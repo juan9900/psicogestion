@@ -12,15 +12,28 @@ type Recurso = {
   precio_usd: number;
   activo: boolean;
   archivo_path: string | null;
+  archivo_tipo: string | null;
   imagen_path: string | null;
 };
 
 const input =
   "rounded-[10px] border border-line-2 px-[13px] py-[10px] text-[14px] text-ink outline-none focus:border-brand";
 
+const fileInput =
+  "mt-1.5 block w-full cursor-pointer text-[13px] text-body file:mr-3 file:cursor-pointer file:rounded-full " +
+  "file:border-0 file:bg-brand file:px-4 file:py-2 file:text-[13px] file:font-medium file:text-white " +
+  "hover:file:brightness-110";
+
+// Tipos de archivo vendibles: un PDF individual o un pack comprimido.
+const CONTENT_TYPE: Record<string, string> = {
+  pdf: "application/pdf",
+  zip: "application/zip",
+  rar: "application/vnd.rar",
+};
+
 export function RecursoForm({ recurso }: { recurso?: Recurso }) {
   const supabase = createClient();
-  const pdfRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
   const [slug, setSlug] = useState(recurso?.slug ?? "");
   const [estado, setEstado] = useState<"idle" | "subiendo" | "guardando" | "ok" | "error">("idle");
@@ -40,17 +53,24 @@ export function RecursoForm({ recurso }: { recurso?: Recurso }) {
 
     try {
       // 1) Subir archivos al Storage si se seleccionaron.
-      const pdf = pdfRef.current?.files?.[0];
+      const archivo = fileRef.current?.files?.[0];
       const img = imgRef.current?.files?.[0];
 
-      if (pdf) {
+      if (archivo) {
+        const ext = (archivo.name.split(".").pop() || "").toLowerCase();
+        if (!CONTENT_TYPE[ext]) {
+          throw new Error("El archivo debe ser PDF, ZIP o RAR.");
+        }
         setEstado("subiendo");
-        setMsg("Subiendo PDF…");
+        setMsg("Subiendo archivo…");
+        // Nota: si se cambia de extensión (ej. de .pdf a .zip), la ruta
+        // cambia y el archivo anterior queda huérfano en Storage.
         const { data: up, error } = await supabase.storage
           .from("recursos")
-          .upload(`${slugVal}/archivo.pdf`, pdf, { upsert: true, contentType: "application/pdf" });
+          .upload(`${slugVal}/archivo.${ext}`, archivo, { upsert: true, contentType: CONTENT_TYPE[ext] });
         if (error) throw error;
         data.set("archivo_path", up.path);
+        data.set("archivo_tipo", ext);
       }
 
       if (img) {
@@ -75,7 +95,7 @@ export function RecursoForm({ recurso }: { recurso?: Recurso }) {
         form.reset();
         setSlug("");
       }
-      if (pdfRef.current) pdfRef.current.value = "";
+      if (fileRef.current) fileRef.current.value = "";
       if (imgRef.current) imgRef.current.value = "";
     } catch (err) {
       setEstado("error");
@@ -114,12 +134,17 @@ export function RecursoForm({ recurso }: { recurso?: Recurso }) {
       />
 
       <label className="text-[13px] text-body">
-        Archivo PDF{recurso?.archivo_path ? " (ya hay uno; subir reemplaza)" : ""}
-        <input ref={pdfRef} type="file" accept="application/pdf" className="mt-1 block w-full text-[13px] text-body" />
+        Archivo (PDF o pack ZIP/RAR){recurso?.archivo_path ? " (ya hay uno; subir reemplaza)" : ""}
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,.zip,.rar,application/pdf,application/zip,application/vnd.rar,application/x-rar-compressed"
+          className={fileInput}
+        />
       </label>
       <label className="text-[13px] text-body">
         Portada (imagen, opcional)
-        <input ref={imgRef} type="file" accept="image/*" className="mt-1 block w-full text-[13px] text-body" />
+        <input ref={imgRef} type="file" accept="image/*" className={fileInput} />
       </label>
 
       <div className="flex items-center gap-3 sm:col-span-2">

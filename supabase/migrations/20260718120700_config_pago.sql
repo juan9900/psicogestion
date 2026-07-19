@@ -1,0 +1,30 @@
+-- Datos de Pago Móvil, editables por el admin y visibles públicamente en el
+-- checkout (no son datos sensibles del comprador, sino de quien cobra).
+
+create table if not exists public.config_pago (
+  id int primary key default 1 check (id = 1),
+  titular text,
+  cedula text,
+  telefono text,
+  banco text,
+  instrucciones text,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.config_pago (id) values (1) on conflict (id) do nothing;
+
+drop trigger if exists trg_config_pago_updated on public.config_pago;
+create trigger trg_config_pago_updated before update on public.config_pago
+  for each row execute function public.set_updated_at();
+
+alter table public.config_pago enable row level security;
+
+-- Lectura pública: hace falta mostrar los datos de cobro en el checkout.
+create policy "config pago visible" on public.config_pago
+  for select using (true);
+
+create policy "admin config pago" on public.config_pago
+  for all using (public.es_admin()) with check (public.es_admin());
+
+grant select on public.config_pago to anon, authenticated;
+grant select, insert, update, delete on public.config_pago to authenticated;

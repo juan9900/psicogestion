@@ -37,7 +37,8 @@ export async function actualizarEstadoCita(formData: FormData) {
   const id = String(formData.get("id"));
   const estado = String(formData.get("estado")); // 'confirmada' | 'cancelada'
   const supabase = await requireAdmin();
-  await supabase.from("citas").update({ estado }).eq("id", id);
+  const { error } = await supabase.from("citas").update({ estado }).eq("id", id);
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/citas");
   revalidatePath("/admin");
 }
@@ -48,7 +49,8 @@ export async function actualizarEstadoOrden(formData: FormData) {
   const supabase = await requireAdmin();
   const patch: Record<string, unknown> = { estado };
   if (estado === "pagada") patch.confirmado_at = new Date().toISOString();
-  await supabase.from("ordenes").update(patch).eq("id", id);
+  const { error } = await supabase.from("ordenes").update(patch).eq("id", id);
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/ordenes");
   revalidatePath("/admin");
 }
@@ -66,17 +68,18 @@ export async function guardarRecurso(formData: FormData) {
   };
 
   // Solo sobreescribimos las rutas de archivo si se subió algo nuevo,
-  // para no borrar el PDF/portada existentes al editar solo los datos.
+  // para no borrar el archivo/portada existentes al editar solo los datos.
   const archivo = String(formData.get("archivo_path") ?? "").trim();
+  const archivoTipo = String(formData.get("archivo_tipo") ?? "").trim();
   const imagen = String(formData.get("imagen_path") ?? "").trim();
   if (archivo) datos.archivo_path = archivo;
+  if (archivoTipo) datos.archivo_tipo = archivoTipo;
   if (imagen) datos.imagen_path = imagen;
 
-  if (id) {
-    await supabase.from("recursos").update(datos).eq("id", id);
-  } else {
-    await supabase.from("recursos").insert(datos);
-  }
+  const { error } = id
+    ? await supabase.from("recursos").update(datos).eq("id", id)
+    : await supabase.from("recursos").insert(datos);
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/recursos");
 }
 
@@ -84,6 +87,21 @@ export async function alternarActivoRecurso(formData: FormData) {
   const id = String(formData.get("id"));
   const activo = formData.get("activo") === "true";
   const supabase = await requireAdmin();
-  await supabase.from("recursos").update({ activo: !activo }).eq("id", id);
+  const { error } = await supabase.from("recursos").update({ activo: !activo }).eq("id", id);
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/recursos");
+}
+
+export async function guardarConfigPago(formData: FormData) {
+  const supabase = await requireAdmin();
+  const datos = {
+    titular: String(formData.get("titular") ?? "").trim() || null,
+    cedula: String(formData.get("cedula") ?? "").trim() || null,
+    telefono: String(formData.get("telefono") ?? "").trim() || null,
+    banco: String(formData.get("banco") ?? "").trim() || null,
+    instrucciones: String(formData.get("instrucciones") ?? "").trim() || null,
+  };
+  const { error } = await supabase.from("config_pago").update(datos).eq("id", 1);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/pagos");
 }

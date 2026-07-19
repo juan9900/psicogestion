@@ -24,6 +24,11 @@ const items = [
     label: "Recursos",
     icon: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z",
   },
+  {
+    href: "/admin/pagos",
+    label: "Pagos",
+    icon: "M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Zm0 4h18M7 15h4",
+  },
 ];
 
 export function SidebarNav() {

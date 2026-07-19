@@ -12,6 +12,7 @@ type Recurso = {
   precio_usd: number;
   activo: boolean;
   archivo_path: string | null;
+  archivo_tipo: string | null;
   imagen_path: string | null;
 };
 
@@ -19,7 +20,7 @@ export default async function RecursosPage() {
   const supabase = await createClient();
   const { data: recursos } = await supabase
     .from("recursos")
-    .select("id, slug, titulo, descripcion, precio_usd, activo, archivo_path, imagen_path")
+    .select("id, slug, titulo, descripcion, precio_usd, activo, archivo_path, archivo_tipo, imagen_path")
     .order("orden", { ascending: true })
     .returns<Recurso[]>();
 
@@ -38,9 +39,11 @@ export default async function RecursosPage() {
                 <div className="text-[13px] text-muted">
                   /{r.slug}
                   {r.archivo_path ? (
-                    <span className="ml-2 text-brand-dark">PDF ✓</span>
+                    <span className="ml-2 text-brand-dark">
+                      {(r.archivo_tipo ?? "archivo").toUpperCase()} ✓
+                    </span>
                   ) : (
-                    <span className="ml-2 text-[#a87b25]">sin PDF</span>
+                    <span className="ml-2 text-[#a87b25]">sin archivo</span>
                   )}
                 </div>
               </div>

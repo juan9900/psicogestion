@@ -4,7 +4,7 @@ import { navLinks } from "@/lib/site";
 
 export function Nav() {
   return (
-    <header className="mx-auto flex max-w-[1120px] items-center justify-between px-6 py-6 sm:px-10 sm:py-7">
+    <header className="mx-auto flex w-full max-w-[1120px] items-center justify-between px-6 py-6 sm:px-10 sm:py-7">
       <Link href="#inicio" aria-label="Psico.Gestión — inicio" className="hover:opacity-100">
         <Wordmark />
       </Link>
