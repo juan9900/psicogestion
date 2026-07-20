@@ -23,7 +23,7 @@ export function Hero() {
             Agendar una hora
           </a>
           <a href="#sobre" className="text-[15px] font-medium text-brand">
-            Conocer a Carmen →
+            Conóceme →
           </a>
         </div>
       </div>

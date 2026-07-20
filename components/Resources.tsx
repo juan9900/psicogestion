@@ -14,8 +14,7 @@ export function Resources() {
           </h2>
           <p className="mb-6 text-[16px] leading-[1.6] text-[#dceee7]">
             Registros emocionales, guías y ejercicios de psicología en PDF,
-            creados por una psicóloga clínica, listos para descargar y trabajar
-            entre sesiones.
+            creados por mí, listos para descargar y trabajar entre sesiones.
           </p>
           <Link
             href="/recursos"
