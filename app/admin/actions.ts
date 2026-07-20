@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { enviarLinkDescarga } from "@/lib/email";
 
 // Verifica sesión + rol admin. Devuelve el cliente autenticado.
 async function requireAdmin() {
@@ -51,6 +52,30 @@ export async function actualizarEstadoOrden(formData: FormData) {
   if (estado === "pagada") patch.confirmado_at = new Date().toISOString();
   const { error } = await supabase.from("ordenes").update(patch).eq("id", id);
   if (error) throw new Error(error.message);
+
+  // Al confirmar el pago, avisamos al comprador con el enlace de descarga.
+  // Best-effort: si el correo falla, la orden ya quedó confirmada igual.
+  if (estado === "pagada") {
+    const { data: orden } = await supabase
+      .from("ordenes")
+      .select("comprador_nombre, comprador_email, token_descarga, recursos(titulo)")
+      .eq("id", id)
+      .maybeSingle<{
+        comprador_nombre: string;
+        comprador_email: string;
+        token_descarga: string;
+        recursos: { titulo: string } | null;
+      }>();
+    if (orden) {
+      await enviarLinkDescarga({
+        email: orden.comprador_email,
+        nombre: orden.comprador_nombre,
+        titulo: orden.recursos?.titulo ?? "tu recurso",
+        token: orden.token_descarga,
+      });
+    }
+  }
+
   revalidatePath("/admin/ordenes");
   revalidatePath("/admin");
 }

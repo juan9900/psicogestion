@@ -76,17 +76,20 @@ export function CheckoutRecurso({
         if (upErr) throw upErr;
         comprobantePath = data.path;
       }
-      const { data, error: rpcError } = await supabase.rpc("crear_orden", {
-        p_recurso_slug: recurso.slug,
-        p_nombre: nombreRef.current!.value.trim(),
-        p_email: emailRef.current!.value.trim(),
-        p_metodo: "pago_movil",
-        p_referencia: referenciaRef.current?.value.trim() || null,
-        p_comprobante_path: comprobantePath,
+      const res = await fetch("/api/ordenes/pago-movil", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: recurso.slug,
+          nombre: nombreRef.current!.value.trim(),
+          email: emailRef.current!.value.trim(),
+          referencia: referenciaRef.current?.value.trim() || null,
+          comprobantePath,
+        }),
       });
-      if (rpcError) throw rpcError;
-      const fila = Array.isArray(data) ? data[0] : data;
-      router.push(`/recursos/orden/${fila.token_descarga}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "No se pudo procesar la compra.");
+      router.push(`/recursos/orden/${json.token}`);
     } catch (err) {
       setEstado("error");
       setError(err instanceof Error ? err.message : "No se pudo procesar la compra.");

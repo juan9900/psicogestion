@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { capturePaypalOrder } from "@/lib/paypal";
+import { enviarLinkDescarga } from "@/lib/email";
 
 // Captura el pago aprobado en PayPal, verifica monto/estado contra la BD
 // (nunca confía en lo que envía el cliente) e inserta la orden ya pagada.
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient();
   const { data: recurso } = await supabase
     .from("recursos")
-    .select("id, precio_usd")
+    .select("id, precio_usd, titulo")
     .eq("slug", slug)
     .eq("activo", true)
     .maybeSingle();
@@ -74,6 +75,13 @@ export async function POST(request: NextRequest) {
   if (error || !orden) {
     return NextResponse.json({ error: "No se pudo registrar la orden" }, { status: 500 });
   }
+
+  await enviarLinkDescarga({
+    email: String(email).trim().toLowerCase(),
+    nombre: String(nombre ?? "").trim() || "—",
+    titulo: recurso.titulo,
+    token: orden.token_descarga,
+  });
 
   return NextResponse.json({ token: orden.token_descarga });
 }
