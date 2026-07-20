@@ -101,15 +101,6 @@ export default async function OrdenesPage() {
                     </form>
                   </>
                 )}
-                {o.estado === "pagada" && (
-                  <form action={actualizarEstadoOrden}>
-                    <input type="hidden" name="id" value={o.id} />
-                    <input type="hidden" name="estado" value="entregada" />
-                    <button className="rounded-full border border-line-2 px-3 py-1.5 text-[12px] text-body hover:bg-cream">
-                      Marcar entregada
-                    </button>
-                  </form>
-                )}
               </div>
             </div>
           ))}

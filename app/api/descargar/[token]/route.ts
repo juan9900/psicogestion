@@ -44,7 +44,13 @@ export async function GET(
     return NextResponse.json({ error: "No se pudo generar la descarga" }, { status: 500 });
   }
 
-  await supabase.from("ordenes").update({ descargas: orden.descargas + 1 }).eq("id", orden.id);
+  // La primera descarga marca la orden como 'entregada': ya no requiere
+  // acción manual del admin, "entregada" pasa a significar "el comprador
+  // ya descargó su archivo".
+  await supabase
+    .from("ordenes")
+    .update({ descargas: orden.descargas + 1, estado: "entregada" })
+    .eq("id", orden.id);
 
   return NextResponse.redirect(firmada.signedUrl);
 }
