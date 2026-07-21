@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { actualizarEstadoCita } from "@/app/admin/actions";
+import { actualizarEstadoCita, alternarPagadoCita } from "@/app/admin/actions";
+import { BotonCancelarCita } from "./BotonCancelarCita";
 import { toggleDir, sortBy, type SortState } from "@/lib/tablas";
 import { filtrarCitas, fechaHora, type Cita, type FiltroEstadoCita } from "./citas-filtros";
 
@@ -13,6 +14,7 @@ const COLUMNS: { key: string; label: string }[] = [
   { key: "nombre", label: "Nombre" },
   { key: "modalidad", label: "Modalidad" },
   { key: "estado", label: "Estado" },
+  { key: "pagado", label: "Pagado" },
 ];
 
 function accessor(cita: Cita, key: string): string | number {
@@ -23,6 +25,8 @@ function accessor(cita: Cita, key: string): string | number {
       return cita.modalidad;
     case "estado":
       return cita.estado;
+    case "pagado":
+      return cita.pagado ? 1 : 0;
     case "fecha":
     default:
       return fechaHora(cita);
@@ -114,6 +118,21 @@ export function CitasTabla({ citas }: { citas: Cita[] }) {
                       {c.estado}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <form action={alternarPagadoCita}>
+                      <input type="hidden" name="id" value={c.id} />
+                      <input type="hidden" name="pagado" value={String(c.pagado)} />
+                      <button
+                        type="submit"
+                        aria-pressed={c.pagado}
+                        className={`rounded-full px-2.5 py-1 text-[12px] transition hover:brightness-95 ${
+                          c.pagado ? "bg-brand-tint text-brand-dark" : "bg-[#f0edeb] text-muted"
+                        }`}
+                      >
+                        {c.pagado ? "Pagado" : "No pagado"}
+                      </button>
+                    </form>
+                  </td>
                   <td className="px-4 py-3 text-muted">
                     {[c.email, c.telefono].filter(Boolean).join(" · ") || "—"}
                   </td>
@@ -129,13 +148,7 @@ export function CitasTabla({ citas }: { citas: Cita[] }) {
                         </form>
                       )}
                       {c.estado !== "cancelada" && (
-                        <form action={actualizarEstadoCita}>
-                          <input type="hidden" name="id" value={c.id} />
-                          <input type="hidden" name="estado" value="cancelada" />
-                          <button className="rounded-full border border-line-2 px-3 py-1.5 text-[12px] text-body hover:bg-cream">
-                            Cancelar
-                          </button>
-                        </form>
+                        <BotonCancelarCita id={c.id} nombre={c.nombre} />
                       )}
                     </div>
                   </td>

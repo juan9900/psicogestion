@@ -93,6 +93,26 @@ export async function crearCitaManual(formData: FormData) {
   revalidatePath("/admin");
 }
 
+export async function actualizarDatosCita(formData: FormData) {
+  const id = String(formData.get("id"));
+  const nombre = String(formData.get("nombre") ?? "").trim();
+  const modalidad = String(formData.get("modalidad") ?? "online");
+  const email = String(formData.get("email") ?? "").trim() || null;
+  const telefono = String(formData.get("telefono") ?? "").trim() || null;
+  const motivo = String(formData.get("motivo") ?? "").trim() || null;
+
+  if (!nombre) throw new Error("El nombre es obligatorio");
+
+  const supabase = await requireAdmin();
+  const { error } = await supabase
+    .from("citas")
+    .update({ nombre, modalidad, email, telefono, motivo })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/citas");
+  revalidatePath("/admin");
+}
+
 export async function guardarPagoCita(formData: FormData) {
   const id = String(formData.get("id"));
   const montoRaw = String(formData.get("monto") ?? "").trim();
@@ -104,6 +124,16 @@ export async function guardarPagoCita(formData: FormData) {
     .from("citas")
     .update({ monto: montoRaw ? Number(montoRaw) : null, metodo_pago: metodoPago, pagado })
     .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/citas");
+  revalidatePath("/admin");
+}
+
+export async function alternarPagadoCita(formData: FormData) {
+  const id = String(formData.get("id"));
+  const pagado = formData.get("pagado") === "true";
+  const supabase = await requireAdmin();
+  const { error } = await supabase.from("citas").update({ pagado: !pagado }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/citas");
   revalidatePath("/admin");

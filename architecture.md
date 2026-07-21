@@ -283,7 +283,21 @@ comparte lo que es realmente idéntico entre ellas.
     `pagado = true`, aparece un badge "Pagado" en el modal y un pequeño
     ícono `$` en el chip del calendario, junto al de modalidad presencial.
     Etiquetas legibles vía `METODOS_PAGO_CITA`/`etiquetaMetodoPago` en
-    `components/admin/citas-filtros.ts`.
+    `components/admin/citas-filtros.ts`. La tabla `CitasTabla` tiene además
+    una columna **Pagado** (ordenable) con un chip-toggle que llama a la
+    server action `alternarPagadoCita` — invierte solo el campo `pagado` sin
+    tocar `monto`/`metodo_pago`, para marcar/desmarcar el pago de un clic sin
+    abrir el modal.
+  - **Editar datos**: el modal de detalle tiene una sección `EdicionCita` que
+    permite editar nombre, modalidad, email, teléfono y motivo vía la server
+    action `actualizarDatosCita` (fecha/hora siguen por Reagendar, que registra
+    el tracking). El modal deriva la cita por `id` del prop fresco de `citas`
+    (no guarda el objeto), así refleja ediciones/pago/reagendado tras revalidar
+    sin necesidad de reabrirlo.
+  - **Cancelar cita**: el botón "Cancelar" (tanto en la tabla como en el modal
+    de detalle) abre un diálogo de confirmación (`BotonCancelarCita`, reusa
+    `Modal`) antes de llamar a `actualizarEstadoCita` con `estado=cancelada`;
+    evita cancelaciones accidentales de una acción destructiva.
 
 ## Análisis (`/admin/analisis`)
 

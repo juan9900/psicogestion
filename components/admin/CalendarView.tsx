@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { actualizarEstadoCita, reagendarCita, crearCitaManual, guardarPagoCita } from "@/app/admin/actions";
+import { actualizarEstadoCita, reagendarCita, crearCitaManual, guardarPagoCita, actualizarDatosCita } from "@/app/admin/actions";
 import { citasDelDia, resumenDia, METODOS_PAGO_CITA, etiquetaMetodoPago, type Cita } from "./citas-filtros";
 import { Modal } from "./Modal";
+import { BotonCancelarCita } from "./BotonCancelarCita";
 
 const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MESES = [
@@ -78,11 +79,11 @@ function ChipCita({ cita, onClick }: { cita: Cita; onClick: () => void }) {
         e.stopPropagation();
         onClick();
       }}
-      className={`flex w-full items-center gap-1 rounded-[6px] px-1.5 py-[3px] text-left text-[11px] leading-tight transition hover:brightness-95 ${ESTADO_CHIP[cita.estado] ?? "bg-cream text-body"}`}
+      className={`flex w-full min-w-0 items-center gap-1 overflow-hidden rounded-[6px] px-1.5 py-[3px] text-left text-[11px] leading-tight transition hover:brightness-95 ${ESTADO_CHIP[cita.estado] ?? "bg-cream text-body"}`}
     >
       <IconoEstado estado={cita.estado} />
       <span className="flex-none">{cita.hora.slice(0, 5)}</span>
-      <span className="truncate">{cita.nombre}</span>
+      <span className="min-w-0 truncate">{cita.nombre}</span>
       {mostrarIconos && (
         <span className="ml-auto flex flex-none items-center gap-1">
           {cita.pagado && <IconoPago />}
@@ -125,6 +126,72 @@ function BotonSubmit({ deshabilitado, texto = "Guardar" }: { deshabilitado?: boo
   );
 }
 
+const campoCls =
+  "rounded-[8px] border border-line-2 bg-white px-2 py-1.5 text-[13px] text-ink outline-none focus:border-brand";
+
+export function EdicionCita({ cita }: { cita: Cita }) {
+  const [editando, setEditando] = useState(false);
+
+  if (!editando) {
+    return (
+      <div className="grid gap-1.5">
+        <div className="text-[13px] text-body">
+          {cita.modalidad}
+          {[cita.email, cita.telefono].some(Boolean) && " · "}
+          {[cita.email, cita.telefono].filter(Boolean).join(" · ")}
+        </div>
+        {cita.motivo && <div className="text-[13px] text-muted">{cita.motivo}</div>}
+        <button
+          type="button"
+          onClick={() => setEditando(true)}
+          className="justify-self-start rounded-full border border-line-2 px-3 py-1.5 text-[12px] text-body transition hover:bg-cream"
+        >
+          Editar datos
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form action={actualizarDatosCita} className="grid gap-2 rounded-[10px] border border-line bg-cream/60 p-3">
+      <input type="hidden" name="id" value={cita.id} />
+      <label className="grid gap-1 text-[12px] text-muted">
+        Nombre
+        <input type="text" name="nombre" defaultValue={cita.nombre} required className={campoCls} />
+      </label>
+      <label className="grid gap-1 text-[12px] text-muted">
+        Modalidad
+        <select name="modalidad" defaultValue={cita.modalidad} className={campoCls}>
+          <option value="online">Online</option>
+          <option value="presencial">Presencial</option>
+        </select>
+      </label>
+      <label className="grid gap-1 text-[12px] text-muted">
+        Email
+        <input type="email" name="email" defaultValue={cita.email ?? ""} className={campoCls} />
+      </label>
+      <label className="grid gap-1 text-[12px] text-muted">
+        Teléfono
+        <input type="tel" name="telefono" defaultValue={cita.telefono ?? ""} className={campoCls} />
+      </label>
+      <label className="grid gap-1 text-[12px] text-muted">
+        Motivo
+        <textarea name="motivo" rows={2} defaultValue={cita.motivo ?? ""} className={campoCls} />
+      </label>
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setEditando(false)}
+          className="rounded-full border border-line-2 px-3 py-1.5 text-[12px] text-body transition hover:bg-cream"
+        >
+          Cancelar
+        </button>
+        <BotonSubmit texto="Guardar datos" />
+      </div>
+    </form>
+  );
+}
+
 function AccionesCita({ cita }: { cita: Cita }) {
   const [reagendando, setReagendando] = useState(false);
   const horaOriginal = cita.hora.slice(0, 5);
@@ -145,13 +212,7 @@ function AccionesCita({ cita }: { cita: Cita }) {
           </form>
         )}
         {cita.estado !== "cancelada" && (
-          <form action={actualizarEstadoCita}>
-            <input type="hidden" name="id" value={cita.id} />
-            <input type="hidden" name="estado" value="cancelada" />
-            <button className="rounded-full border border-line-2 px-3 py-1.5 text-[12px] text-body hover:bg-cream">
-              Cancelar
-            </button>
-          </form>
+          <BotonCancelarCita id={cita.id} nombre={cita.nombre} />
         )}
         <button
           onClick={() => setReagendando((v) => !v)}
@@ -332,8 +393,12 @@ export function CalendarView({ citas }: { citas: Cita[] }) {
   const todayIso = iso(now.getFullYear(), now.getMonth(), now.getDate());
 
   const [diaModal, setDiaModal] = useState<string | null>(null);
-  const [detalle, setDetalle] = useState<Cita | null>(null);
+  const [detalleId, setDetalleId] = useState<string | null>(null);
   const [nuevoAbierto, setNuevoAbierto] = useState(false);
+
+  // Derivar la cita del prop fresco (no guardar el objeto) para que el modal
+  // refleje ediciones/pago/reagendado tras revalidar, sin tener que reabrir.
+  const detalle = detalleId ? (citas.find((c) => c.id === detalleId) ?? null) : null;
 
   const firstDow = new Date(cur.y, cur.m, 1).getDay();
   const daysInMonth = new Date(cur.y, cur.m + 1, 0).getDate();
@@ -344,7 +409,7 @@ export function CalendarView({ citas }: { citas: Cita[] }) {
   const prev = () => setCur(({ y, m }) => (m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 }));
   const next = () => setCur(({ y, m }) => (m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 }));
 
-  const abrirDetalle = (cita: Cita) => setDetalle(cita);
+  const abrirDetalle = (cita: Cita) => setDetalleId(cita.id);
 
   return (
     <div className="grid gap-5">
@@ -394,10 +459,10 @@ export function CalendarView({ citas }: { citas: Cita[] }) {
               <button
                 key={i}
                 onClick={() => setDiaModal(dISO)}
-                className="flex min-h-[92px] flex-col items-stretch gap-1 rounded-[10px] border border-line bg-white p-1.5 text-left transition hover:border-brand"
+                className="flex min-h-[92px] min-w-0 flex-col items-stretch gap-1 rounded-[10px] border border-line bg-white p-1.5 text-left transition hover:border-brand"
               >
                 <span className={`px-0.5 text-[12px] ${isToday ? "font-semibold text-brand" : "text-ink"}`}>{d}</span>
-                <div className="grid gap-0.5">
+                <div className="grid min-w-0 gap-0.5">
                   {visibles.map((c) => (
                     <ChipCita key={c.id} cita={c} onClick={() => abrirDetalle(c)} />
                   ))}
@@ -448,7 +513,7 @@ export function CalendarView({ citas }: { citas: Cita[] }) {
       )}
 
       {detalle && (
-        <Modal titulo={detalle.nombre} onClose={() => setDetalle(null)}>
+        <Modal titulo={detalle.nombre} onClose={() => setDetalleId(null)}>
           <div className="grid gap-3">
             <div className="flex items-center justify-between">
               <div className="font-serif text-[17px] text-ink">
@@ -456,12 +521,7 @@ export function CalendarView({ citas }: { citas: Cita[] }) {
               </div>
               <EstadoBadge estado={detalle.estado} />
             </div>
-            <div className="text-[13px] text-body">
-              {detalle.modalidad}
-              {[detalle.email, detalle.telefono].some(Boolean) && " · "}
-              {[detalle.email, detalle.telefono].filter(Boolean).join(" · ")}
-            </div>
-            {detalle.motivo && <div className="text-[13px] text-muted">{detalle.motivo}</div>}
+            <EdicionCita cita={detalle} />
             <AccionesCita cita={detalle} />
             <SeccionPago cita={detalle} />
           </div>
