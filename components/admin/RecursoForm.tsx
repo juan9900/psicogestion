@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { guardarRecurso } from "@/app/admin/actions";
+import { RECURSOS_CATEGORIAS } from "@/lib/recursos-categorias";
 
 type Recurso = {
   id: string;
@@ -14,6 +15,7 @@ type Recurso = {
   archivo_path: string | null;
   archivo_tipo: string | null;
   imagen_path: string | null;
+  categoria: string | null;
 };
 
 const input =
@@ -126,6 +128,14 @@ export function RecursoForm({ recurso }: { recurso?: Recurso }) {
       <label className="flex items-center gap-2 text-[14px] text-body">
         <input type="checkbox" name="activo" defaultChecked={recurso ? recurso.activo : true} /> Activo
       </label>
+      <select name="categoria" defaultValue={recurso?.categoria ?? ""} className={input}>
+        <option value="">Sin categoría</option>
+        {RECURSOS_CATEGORIAS.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
       <textarea
         name="descripcion"
         defaultValue={recurso?.descripcion ?? ""}

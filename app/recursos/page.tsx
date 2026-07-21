@@ -3,6 +3,8 @@ import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { ImagePlaceholder } from "@/components/ImagePlaceholder";
 import { createClient } from "@/lib/supabase/server";
+import { RecursosFiltros } from "./RecursosFiltros";
+import { parseRecursosParams, ordenToQuery, tipoToArchivoTipos, sanitizeQuery } from "./filtros";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +14,30 @@ type Recurso = {
   descripcion: string | null;
   precio_usd: number;
   imagen_path: string | null;
+  categoria: string | null;
+  archivo_tipo: string | null;
 };
 
-export default async function RecursosPage() {
+export default async function RecursosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { q, categoria, tipo, orden } = parseRecursosParams(await searchParams);
+  const { column, ascending } = ordenToQuery(orden);
+
   const supabase = await createClient();
-  const { data: recursos } = await supabase
+  let query = supabase
     .from("recursos")
-    .select("slug, titulo, descripcion, precio_usd, imagen_path")
-    .eq("activo", true)
-    .order("orden", { ascending: true })
-    .returns<Recurso[]>();
+    .select("slug, titulo, descripcion, precio_usd, imagen_path, categoria, archivo_tipo, created_at")
+    .eq("activo", true);
+
+  if (categoria) query = query.eq("categoria", categoria);
+  if (tipo) query = query.in("archivo_tipo", tipoToArchivoTipos(tipo));
+  const qLimpio = sanitizeQuery(q);
+  if (qLimpio) query = query.or(`titulo.ilike.%${qLimpio}%,descripcion.ilike.%${qLimpio}%`);
+
+  const { data: recursos } = await query.order(column, { ascending }).returns<Recurso[]>();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -34,8 +50,14 @@ export default async function RecursosPage() {
           Registros emocionales, guías y ejercicios en PDF, listos para descargar y trabajar entre sesiones.
         </p>
 
+        <RecursosFiltros />
+
         {!recursos?.length ? (
-          <p className="text-[15px] text-body">Todavía no hay recursos disponibles.</p>
+          <p className="text-[15px] text-body">
+            {q || categoria || tipo
+              ? "No encontramos recursos con esos filtros."
+              : "Todavía no hay recursos disponibles."}
+          </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
             {recursos.map((r) => {

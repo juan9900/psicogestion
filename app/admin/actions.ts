@@ -44,6 +44,68 @@ export async function actualizarEstadoCita(formData: FormData) {
   revalidatePath("/admin");
 }
 
+export async function reagendarCita(formData: FormData) {
+  const id = String(formData.get("id"));
+  const fecha = String(formData.get("fecha"));
+  const hora = String(formData.get("hora"));
+  const supabase = await requireAdmin();
+  const { error } = await supabase.from("citas").update({ fecha, hora }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/citas");
+  revalidatePath("/admin");
+}
+
+// Alta manual de una cita desde el panel admin. A diferencia del formulario
+// público (RPC crear_cita), no valida contra los horarios configurados: el
+// admin puede coordinar una cita a cualquier hora. El índice único de
+// public.citas (fecha, hora) sigue evitando duplicar un slot activo.
+export async function crearCitaManual(formData: FormData) {
+  const nombre = String(formData.get("nombre") ?? "").trim();
+  const fecha = String(formData.get("fecha") ?? "").trim();
+  const hora = String(formData.get("hora") ?? "").trim();
+  const modalidad = String(formData.get("modalidad") ?? "online");
+  const email = String(formData.get("email") ?? "").trim() || null;
+  const telefono = String(formData.get("telefono") ?? "").trim() || null;
+  const motivo = String(formData.get("motivo") ?? "").trim() || null;
+
+  if (!nombre) throw new Error("El nombre es obligatorio");
+  if (!fecha || !hora) throw new Error("La fecha y la hora son obligatorias");
+
+  const supabase = await requireAdmin();
+  const { error } = await supabase.from("citas").insert({
+    nombre,
+    fecha,
+    hora,
+    modalidad,
+    email,
+    telefono,
+    motivo,
+    estado: "confirmada",
+  });
+  if (error) {
+    if (error.code === "23505") throw new Error("Ya hay una cita activa en ese horario");
+    throw new Error(error.message);
+  }
+  revalidatePath("/admin/citas");
+  revalidatePath("/admin");
+}
+
+export async function guardarPagoCita(formData: FormData) {
+  const id = String(formData.get("id"));
+  const montoRaw = String(formData.get("monto") ?? "").trim();
+  const metodoPago = String(formData.get("metodo_pago") ?? "").trim() || null;
+  const pagado = ["on", "true"].includes(String(formData.get("pagado") ?? ""));
+
+  const supabase = await requireAdmin();
+  const { error } = await supabase
+    .from("citas")
+    .update({ monto: montoRaw ? Number(montoRaw) : null, metodo_pago: metodoPago, pagado })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/citas");
+  revalidatePath("/admin");
+}
+
 export async function actualizarEstadoOrden(formData: FormData) {
   const id = String(formData.get("id"));
   const estado = String(formData.get("estado")); // 'pagada' | 'entregada' | 'rechazada'
@@ -90,6 +152,7 @@ export async function guardarRecurso(formData: FormData) {
     descripcion: String(formData.get("descripcion") ?? "").trim() || null,
     precio_usd: Number(formData.get("precio_usd") ?? 0),
     activo: ["on", "true"].includes(String(formData.get("activo") ?? "")),
+    categoria: String(formData.get("categoria") ?? "").trim() || null,
   };
 
   // Solo sobreescribimos las rutas de archivo si se subió algo nuevo,

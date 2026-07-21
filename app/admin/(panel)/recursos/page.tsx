@@ -14,13 +14,14 @@ type Recurso = {
   archivo_path: string | null;
   archivo_tipo: string | null;
   imagen_path: string | null;
+  categoria: string | null;
 };
 
 export default async function RecursosPage() {
   const supabase = await createClient();
   const { data: recursos } = await supabase
     .from("recursos")
-    .select("id, slug, titulo, descripcion, precio_usd, activo, archivo_path, archivo_tipo, imagen_path")
+    .select("id, slug, titulo, descripcion, precio_usd, activo, archivo_path, archivo_tipo, imagen_path, categoria")
     .order("orden", { ascending: true })
     .returns<Recurso[]>();
 

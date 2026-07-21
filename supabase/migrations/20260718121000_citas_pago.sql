@@ -1,7 +1,6 @@
--- Migraciones pendientes de aplicar en el proyecto Supabase real
--- (glsoimjgxvcatdywfnco). Pegar todo esto en Supabase → SQL Editor → Run.
+-- Registro de pago de las citas: monto cobrado, método y si ya se pagó.
+-- Enum propio (no se reutiliza `metodo_pago` de la tienda: valores distintos).
 
--- 20260718121000_citas_pago.sql — pago de citas (monto, método, pagado).
 do $$ begin
   create type metodo_pago_cita as enum ('binance', 'efectivo', 'pago_movil', 'zelle');
 exception when duplicate_object then null; end $$;

@@ -35,7 +35,9 @@ app/
     (panel)/                        route group protegido (requiere sesión + es_admin())
       layout.tsx, page.tsx (dashboard), citas/, ordenes/, pagos/, recursos/
   recursos/
-    page.tsx                        vitrina de recursos activos
+    page.tsx                        vitrina de recursos activos, con filtros/orden por searchParams
+    filtros.ts                      parseo puro de searchParams -> filtros + mapeo a query Supabase
+    RecursosFiltros.tsx             barra de filtros ("use client", escribe la URL)
     [slug]/page.tsx                 detalle de un recurso + checkout
     orden/[token]/page.tsx          estado de una orden (comprador anónimo)
   api/
@@ -63,7 +65,9 @@ Migraciones en `supabase/migrations/`, en orden:
 
 - **`recursos`**: catálogo (slug, título, precio_usd, archivo_path/archivo_tipo
   en bucket privado `recursos`, imagen_path en bucket público
-  `recursos-imagenes`, activo, orden).
+  `recursos-imagenes`, activo, orden, **categoria** — texto libre, lista de
+  valores permitidos fija en `lib/recursos-categorias.ts`, sin CHECK en BD
+  para poder ampliarla sin migración).
 - **`ordenes`**: compras. Campos clave: `metodo_pago` (paypal/pago_movil/usdt),
   `estado` (pendiente → pagada/rechazada → entregada), `token_descarga` (uuid,
   único, capability del comprador), `descargas`/`max_descargas` (límite 5),
@@ -172,6 +176,74 @@ variables). Cada envío manda también una versión `text` plana equivalente
 | `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_EMAIL` | solo server | correos |
 | `NEXT_PUBLIC_SITE_URL` | server (arma el link de los correos) | debe apuntar al dominio real en producción |
 
+## Filtros y tablas ordenables
+
+No hay un componente `<DataTable>` genérico a propósito: las tres vistas
+tienen columnas, filtros y formularios embebidos distintos, así que solo se
+comparte lo que es realmente idéntico entre ellas.
+
+- **`lib/tablas.ts`**: helper puro de orden (`toggleDir`, `sortBy`) usado por
+  las tablas de admin. Sin dependencias de React ni Supabase — testeable
+  directo.
+- **`/recursos`** (público): `app/recursos/filtros.ts` parsea los
+  `searchParams` (`q`, `categoria`, `tipo`, `orden`) y los traduce a filtros
+  de la query de Supabase (`.eq`, `.in`, `.or(ilike...)`, `.order`).
+  `RecursosFiltros.tsx` es un `"use client"` que lee/escribe esos params en
+  la URL (`router.replace`, buscador con debounce). El filtro "tipo de
+  contenido" (archivo único vs pack) es derivado de `archivo_tipo`
+  (`pdf` vs `zip`/`rar`), no una columna nueva.
+- **`/admin/ordenes`**: `OrdenesTabla.tsx` (`"use client"`) recibe las filas
+  ya resueltas por el server component (`page.tsx`, incluidas las URLs
+  firmadas de `comprobante_path`) y aplica filtro/orden en memoria vía
+  `app/admin/(panel)/ordenes/ordenes-filtros.ts`. Los formularios de cambio
+  de estado (`actualizarEstadoOrden`) siguen siendo server actions
+  embebidas, igual que antes.
+- **`/admin/citas`**: `CalendarView.tsx` (calendario mensual) usa un layout
+  estilo Google Calendar — el número del día va arriba a la izquierda y,
+  dentro de la misma celda, hasta 3 "chips" con las agendas del día
+  (hora + nombre truncado, coloreados por `estado`: check verde =
+  confirmada, punto ámbar = pendiente, tachado gris = cancelada; ícono de
+  persona si `modalidad = presencial`). Si sobran citas aparece "+N más".
+  Click en el fondo de la celda o en "+N más" abre un **modal del día**
+  (`Modal.tsx`, con scroll vertical) listando todas las agendas; click en un
+  chip (desde la celda o el modal del día) abre un **modal de detalle** de
+  esa cita, con las acciones Confirmar/Cancelar (`actualizarEstadoCita`) y
+  **Reagendar** — revela un formulario con `<input type="date">`/`time"` que
+  llama a la nueva server action `reagendarCita` (actualiza `fecha`/`hora`).
+  No hay panel de detalle inline debajo del calendario: todo vive en los
+  modales. `components/admin/Modal.tsx` es el overlay reutilizable
+  (`fixed inset-0` + backdrop + cierre con Escape/click fuera/✕), siguiendo
+  el mismo patrón manual que ya usaba `AdminShell.tsx` — el proyecto no tiene
+  librería de diálogos. Los botones "Guardar" de los formularios dentro de
+  los modales usan un `BotonSubmit` genérico (`useFormStatus` de
+  `react-dom`) que se deshabilita y muestra un spinner mientras la server
+  action está en curso.
+  `components/admin/CitasTabla.tsx` es un componente **hermano**, renderizado
+  debajo por `citas/page.tsx`, que muestra todas las citas ordenadas por
+  fecha. Por defecto oculta las `cancelada` (filtro "Confirmadas y
+  pendientes"), con opción de ver todas o filtrar por estado/modalidad.
+  Lógica pura (filtros de tabla + `citasDelDia`/`resumenDia` para el
+  calendario) en `components/admin/citas-filtros.ts`.
+  - **Agendar manualmente**: botón "+ Agendar" sobre el calendario abre un
+    modal con un formulario (nombre, fecha, hora, modalidad, email,
+    teléfono, motivo) que llama a la server action `crearCitaManual`. A
+    diferencia del formulario público (RPC `crear_cita`), inserta
+    directamente en `public.citas` sin validar contra los horarios
+    configurados — el admin puede coordinar una cita a cualquier hora; solo
+    la mantiene el índice único `(fecha, hora)` de citas activas. La cita
+    manual queda `confirmada` de una vez.
+  - **Pago de la cita**: columnas nuevas en `citas` — `monto numeric`,
+    `metodo_pago metodo_pago_cita` (enum propio: `binance`, `efectivo`,
+    `pago_movil`, `zelle`; no se reutiliza el enum `metodo_pago` de la
+    tienda) y `pagado boolean` (migración
+    `supabase/migrations/20260718121000_citas_pago.sql`). El modal de
+    detalle de cada cita tiene una sección "Pago" con formulario (monto,
+    método, checkbox "pagado") que llama a `guardarPagoCita`. Cuando
+    `pagado = true`, aparece un badge "Pagado" en el modal y un pequeño
+    ícono `$` en el chip del calendario, junto al de modalidad presencial.
+    Etiquetas legibles vía `METODOS_PAGO_CITA`/`etiquetaMetodoPago` en
+    `components/admin/citas-filtros.ts`.
+
 ## Testing
 
 **Vitest**, sin nada previo en el proyecto. Config en `vitest.config.ts`
@@ -192,7 +264,10 @@ Cobertura actual: `lib/paypal.test.ts`, `lib/email.test.ts`,
 `app/api/paypal/capture/route.test.ts`,
 `app/api/descargar/[token]/route.test.ts`,
 `app/api/ordenes/pago-movil/route.test.ts`,
-`components/tienda/EstadoOrdenWatcher.test.tsx`.
+`components/tienda/EstadoOrdenWatcher.test.tsx`,
+`lib/tablas.test.ts`, `app/recursos/filtros.test.ts`,
+`app/admin/(panel)/ordenes/ordenes-filtros.test.ts`,
+`components/admin/citas-filtros.test.ts`.
 
 Regla de trabajo (ver `CLAUDE.md`): cada feature agrega sus tests; la suite
 completa se corre **una sola vez** al terminar la tarea, no en cada paso.
