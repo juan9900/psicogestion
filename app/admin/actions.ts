@@ -49,10 +49,13 @@ export async function reagendarCita(formData: FormData) {
   const fecha = String(formData.get("fecha"));
   const hora = String(formData.get("hora"));
   const supabase = await requireAdmin();
-  const { error } = await supabase.from("citas").update({ fecha, hora }).eq("id", id);
+  // RPC en vez de update directo: registra el reagendamiento de forma atómica
+  // (contador + timestamp) para poder analizarlo en /admin/analisis.
+  const { error } = await supabase.rpc("reagendar_cita", { p_id: id, p_fecha: fecha, p_hora: hora });
   if (error) throw new Error(error.message);
   revalidatePath("/admin/citas");
   revalidatePath("/admin");
+  revalidatePath("/admin/analisis");
 }
 
 // Alta manual de una cita desde el panel admin. A diferencia del formulario

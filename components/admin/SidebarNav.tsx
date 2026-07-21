@@ -29,6 +29,11 @@ const items = [
     label: "Pagos",
     icon: "M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Zm0 4h18M7 15h4",
   },
+  {
+    href: "/admin/analisis",
+    label: "Análisis",
+    icon: "M4 19V5M4 19h16M8 19v-6M12 19V9M16 19v-4",
+  },
 ];
 
 export function SidebarNav() {

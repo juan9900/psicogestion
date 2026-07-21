@@ -33,7 +33,8 @@ app/
     login/page.tsx                  login de admin (Supabase Auth)
     actions.ts                      server actions del panel ("use server")
     (panel)/                        route group protegido (requiere sesión + es_admin())
-      layout.tsx, page.tsx (dashboard), citas/, ordenes/, pagos/, recursos/
+      layout.tsx, page.tsx (dashboard), citas/, ordenes/, pagos/, recursos/,
+      analisis/                       gráficas y KPIs de citas + tienda
   recursos/
     page.tsx                        vitrina de recursos activos, con filtros/orden por searchParams
     filtros.ts                      parseo puro de searchParams -> filtros + mapeo a query Supabase
@@ -77,7 +78,11 @@ Migraciones en `supabase/migrations/`, en orden:
 - **`administradores`**: `user_id` → quién es admin.
 - **`citas`**, **`config_agenda`**, **`franjas_disponibilidad`**,
   **`dias_bloqueados`**: sistema de agenda (fuera del alcance de este doc de
-  tienda; ver migraciones `agenda.sql`).
+  tienda; ver migraciones `agenda.sql`). `citas` además tiene pago propio
+  (`monto`, `metodo_pago` — enum `metodo_pago_cita`, `pagado`) y tracking de
+  reagendamiento (`veces_reagendada`, `ultima_reagendacion`, ver
+  `20260720000000_citas_reagendamiento.sql`): reagendar solo mueve
+  fecha/hora, no registra montos.
 
 **RLS**: todas las tablas la tienen habilitada. Lectura pública solo en lo
 estrictamente necesario (recursos activos, config_agenda/franjas,
@@ -90,7 +95,43 @@ la que Realtime no usa `postgres_changes` (ver más abajo).
 **RPCs `SECURITY DEFINER`** (`supabase/migrations/20260718120200_funciones.sql`):
 `es_admin()`, `crear_orden(...)` (precio siempre tomado de la BD, nunca del
 cliente), `consultar_orden(token)`, `horarios_disponibles(fecha)`,
-`crear_cita(...)`.
+`crear_cita(...)` (email normalizado `lower(trim(...))`, igual que
+`crear_orden`). También `reagendar_cita(id, fecha, hora)`
+(`20260720000000_citas_reagendamiento.sql`): mueve la cita e incrementa
+`veces_reagendada` de forma atómica (evita el `col = col + 1` que PostgREST
+no permite en un `update` simple).
+
+## Seguridad y confidencialidad
+
+Modelo (auditado 2026-07-20; los datos sensibles son PII de pacientes en
+`citas` — incluido `motivo`, dato de salud — y PII + pago de compradores en
+`ordenes`):
+
+- **RLS admin-only en lo sensible**: `citas`, `ordenes`, `administradores` y
+  `dias_bloqueados` no tienen ninguna política de lectura pública; solo
+  `es_admin()`. `dias_bloqueados` dejó de ser legible por anon en
+  `20260721000000_hardening_funciones.sql` porque su `motivo` puede ser
+  personal y el sitio público no la consulta (la disponibilidad sale de la
+  RPC `horarios_disponibles`).
+- **El público solo pasa por RPCs `SECURITY DEFINER`** con `set search_path`,
+  que exponen columnas mínimas y validan en servidor (precio desde la BD,
+  disponibilidad del slot).
+- **Regla obligatoria**: Postgres concede `EXECUTE` a `PUBLIC` por defecto,
+  así que **toda función nueva debe incluir su bloque `revoke execute` +
+  `grant` explícito** (patrón de `20260718120500_hardening.sql` y
+  `20260721000000_hardening_funciones.sql`). Omitirlo dejó `reagendar_cita`
+  invocable por anon durante un día; ahora exige `es_admin()` internamente y
+  solo `authenticated` puede ejecutarla. `supabase/migraciones.test.ts` hace
+  cumplir la regla en CI.
+- **Archivos**: buckets `recursos` y `comprobantes` privados; descarga solo
+  vía `/api/descargar/[token]` (token + estado pagada + límite de descargas +
+  signed URL de 60s). Comprobantes: el público solo puede subir (insert);
+  solo admin lee.
+- **Secretos**: `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY` y
+  `PAYPAL_CLIENT_SECRET` viven solo en código de servidor; `.env*` está en
+  `.gitignore` (solo `.env.example` con placeholders se versiona).
+- **Pendiente manual**: activar *leaked password protection* en el dashboard
+  de Supabase (Auth → Passwords), señalado por el advisor de seguridad.
 
 ## Flujo de compra
 
@@ -243,6 +284,45 @@ comparte lo que es realmente idéntico entre ellas.
     ícono `$` en el chip del calendario, junto al de modalidad presencial.
     Etiquetas legibles vía `METODOS_PAGO_CITA`/`etiquetaMetodoPago` en
     `components/admin/citas-filtros.ts`.
+
+## Análisis (`/admin/analisis`)
+
+Vista con KPIs y gráficas (Recharts, primera dependencia de charting del
+proyecto) para ver el negocio de un vistazo. Sigue el mismo split que el
+resto del panel: agregación pura y testeable separada de la página server
+component y del componente cliente que dibuja.
+
+- **`analisis-datos.ts`**: funciones puras (sin React/Supabase) que reciben
+  las filas crudas de `citas`/`ordenes`/`recursos` y devuelven resúmenes:
+  - `resumenCitas`: total, por estado (pendiente/confirmada/cancelada),
+    **reagendadas** (`veces_reagendada > 0`), por modalidad, e ingresos de
+    citas (`monto` sumado donde `pagado = true`).
+  - `resumenTienda`: ventas e ingresos de `ordenes` en estado `pagada` o
+    `entregada` (las únicas que cuentan como venta confirmada), agrupados
+    también por método de pago y por categoría del recurso.
+  - `serieMensual`: puntos por mes (`YYYY-MM`) con `citas`/`ingresosCitas` y
+    `ventas`/`ingresosTienda` **separados** — citas y recursos son negocios
+    distintos y no se combinan en una misma serie/gráfica.
+  - `topRecursos`: ranking de recursos por ventas/ingresos.
+  Tests co-locados en `analisis-datos.test.ts`.
+- **`page.tsx`**: server component (`force-dynamic`), trae las tres tablas en
+  paralelo (sin filtrar por fecha — analiza el histórico completo) y le pasa
+  los resúmenes ya calculados a `AnalisisCharts`. PostgREST no soporta
+  `SUM`/`GROUP BY` vía el cliente JS, así que la suma ocurre en JS sobre las
+  filas traídas (mismo enfoque que ya usan las tarjetas de `page.tsx` del
+  Resumen).
+- **`AnalisisCharts.tsx`** (`"use client"`): tarjetas de KPIs + gráficas —
+  líneas de citas y de ventas de recursos por mes en gráficas separadas,
+  barras de ingresos de citas e ingresos de recursos también separadas,
+  donas de estado/modalidad de citas, barras de ingresos por método de pago
+  y por categoría, barras del top de recursos — estilizadas con los tokens
+  de marca (`brand`/`sand`/`line`). Cada gráfica vive en un contenedor
+  `overflow-x-auto` para no romper el ancho en móvil.
+- **Ingresos totales** = ingresos de la tienda (`ordenes` pagada/entregada) +
+  ingresos de citas pagadas — ambos en USD, sin conversión de moneda.
+- **Importante:** "reagendadas" solo cuenta desde que se agregó el tracking
+  (`veces_reagendada`/`ultima_reagendacion`, ver arriba); reagendamientos
+  anteriores a esa migración no quedan reflejados, porque no dejaban rastro.
 
 ## Testing
 
