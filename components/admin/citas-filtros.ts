@@ -13,6 +13,19 @@ export type Cita = {
   pagado: boolean;
 };
 
+export const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+export const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+/** Título legible de un día ISO, ej. "Lun 15 de julio". */
+export function tituloDia(dISO: string): string {
+  const [y, m, d] = dISO.split("-").map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  return `${DIAS[dow]} ${d} de ${MESES[m - 1].toLowerCase()}`;
+}
+
 export type FiltroEstadoCita = "activas" | "todas" | "pendiente" | "confirmada" | "cancelada";
 
 export type FiltrosCitas = {

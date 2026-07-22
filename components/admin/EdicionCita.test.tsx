@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { EdicionCita } from "./CalendarView";
+import { EdicionCita } from "./DetalleCitaModal";
 import type { Cita } from "./citas-filtros";
 
 vi.mock("@/app/admin/actions", () => ({

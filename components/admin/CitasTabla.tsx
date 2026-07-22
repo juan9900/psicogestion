@@ -5,6 +5,7 @@ import { actualizarEstadoCita, alternarPagadoCita } from "@/app/admin/actions";
 import { BotonCancelarCita } from "./BotonCancelarCita";
 import { toggleDir, sortBy, type SortState } from "@/lib/tablas";
 import { filtrarCitas, fechaHora, type Cita, type FiltroEstadoCita } from "./citas-filtros";
+import { DetalleCitaModal } from "./DetalleCitaModal";
 
 const selectCls =
   "rounded-[10px] border border-line-2 bg-white px-3 py-2 text-[13px] text-ink outline-none focus:border-brand";
@@ -38,6 +39,11 @@ export function CitasTabla({ citas }: { citas: Cita[] }) {
   const [modalidad, setModalidad] = useState("");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortState>({ key: "fecha", dir: "asc" });
+  const [detalleId, setDetalleId] = useState<string | null>(null);
+
+  // Cita derivada del prop fresco (igual que en CalendarView) para que el modal
+  // refleje ediciones/pago tras revalidar sin reabrirlo.
+  const detalle = detalleId ? (citas.find((c) => c.id === detalleId) ?? null) : null;
 
   const filas = useMemo(() => {
     const filtradas = filtrarCitas(citas, { estado, modalidad, q });
@@ -99,7 +105,11 @@ export function CitasTabla({ citas }: { citas: Cita[] }) {
             </thead>
             <tbody>
               {filas.map((c) => (
-                <tr key={c.id} className="border-b border-line last:border-0">
+                <tr
+                  key={c.id}
+                  onClick={() => setDetalleId(c.id)}
+                  className="cursor-pointer border-b border-line transition last:border-0 hover:bg-cream"
+                >
                   <td className="px-4 py-3 text-ink">
                     {c.fecha} · {c.hora.slice(0, 5)}
                   </td>
@@ -118,7 +128,7 @@ export function CitasTabla({ citas }: { citas: Cita[] }) {
                       {c.estado}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <form action={alternarPagadoCita}>
                       <input type="hidden" name="id" value={c.id} />
                       <input type="hidden" name="pagado" value={String(c.pagado)} />
@@ -136,7 +146,7 @@ export function CitasTabla({ citas }: { citas: Cita[] }) {
                   <td className="px-4 py-3 text-muted">
                     {[c.email, c.telefono].filter(Boolean).join(" · ") || "—"}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
                       {c.estado === "pendiente" && (
                         <form action={actualizarEstadoCita}>
@@ -158,6 +168,8 @@ export function CitasTabla({ citas }: { citas: Cita[] }) {
           </table>
         </div>
       )}
+
+      {detalle && <DetalleCitaModal cita={detalle} onClose={() => setDetalleId(null)} />}
     </div>
   );
 }

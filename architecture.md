@@ -256,12 +256,28 @@ comparte lo que es realmente idéntico entre ellas.
   (hora + nombre truncado, coloreados por `estado`: check verde =
   confirmada, punto ámbar = pendiente, tachado gris = cancelada; ícono de
   persona si `modalidad = presencial`). Si sobran citas aparece "+N más".
-  Click en el fondo de la celda o en "+N más" abre un **modal del día**
+  **Responsive (CSS-only, breakpoint `sm` = 640px):** los chips solo se
+  muestran en escritorio (`hidden sm:grid`); en **móvil** cada día con citas
+  muestra solo un **punto verde + el número** de citas (`flex sm:hidden`) y la
+  celda es más baja (`min-h-[56px] sm:min-h-[92px]`), para que el calendario
+  sea legible en pantalla pequeña. No se usa `matchMedia`/hook JS — todo por
+  clases Tailwind, sin riesgo de hidratación.
+  Click en el fondo de la celda (o en "+N más") abre un **modal del día**
   (`Modal.tsx`, con scroll vertical) listando todas las agendas; click en un
-  chip (desde la celda o el modal del día) abre un **modal de detalle** de
-  esa cita, con las acciones Confirmar/Cancelar (`actualizarEstadoCita`) y
+  chip (escritorio) o en un ítem del modal del día abre un **modal de detalle**
+  de esa cita, con las acciones Confirmar/Cancelar (`actualizarEstadoCita`) y
   **Reagendar** — revela un formulario con `<input type="date">`/`time"` que
-  llama a la nueva server action `reagendarCita` (actualiza `fecha`/`hora`).
+  llama a la server action `reagendarCita` (actualiza `fecha`/`hora`).
+  **Navegación día ↔ detalle:** al abrir el detalle desde el modal del día,
+  este NO se cierra (se oculta mientras `detalle` está activo, condición
+  `diaModal && !detalle`); al cerrar el detalle reaparece el modal del día
+  ("volver atrás"). Solo hay un backdrop visible a la vez.
+  El modal de detalle está extraído en **`components/admin/DetalleCitaModal.tsx`**
+  (`DetalleCitaModal` + sub-componentes `EdicionCita`/`AccionesCita`/`SeccionPago`
+  + `EstadoBadge`/`BotonSubmit`), compartido por el calendario y la tabla — así
+  no se duplica el formulario de detalle. `CalendarView` importa de ese archivo;
+  `DetalleCitaModal` no importa de `CalendarView` (dependencia acíclica).
+  Helpers puros de fecha (`DIAS`/`MESES`/`tituloDia`) viven en `citas-filtros.ts`.
   No hay panel de detalle inline debajo del calendario: todo vive en los
   modales. `components/admin/Modal.tsx` es el overlay reutilizable
   (`fixed inset-0` + backdrop + cierre con Escape/click fuera/✕), siguiendo
@@ -274,6 +290,10 @@ comparte lo que es realmente idéntico entre ellas.
   debajo por `citas/page.tsx`, que muestra todas las citas ordenadas por
   fecha. Por defecto oculta las `cancelada` (filtro "Confirmadas y
   pendientes"), con opción de ver todas o filtrar por estado/modalidad.
+  **Click en una fila** abre el mismo `DetalleCitaModal` del calendario (con
+  editar/cancelar/reagendar/pago); las celdas de acción (toggle Pagado,
+  Confirmar, Cancelar) llevan `stopPropagation` para que sus botones no
+  disparen también el modal de la fila.
   Lógica pura (filtros de tabla + `citasDelDia`/`resumenDia` para el
   calendario) en `components/admin/citas-filtros.ts`.
   - **Agendar manualmente**: botón "+ Agendar" sobre el calendario abre un
