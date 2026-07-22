@@ -8,7 +8,17 @@ import { site } from "@/lib/site";
 // existe en la BD antes de llamar a esto). Cada función atrapa sus propios
 // errores y los registra, para que un fallo de envío nunca rompa la compra.
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Cliente Resend perezoso: NO se instancia al cargar el módulo. Antes se hacía
+// `new Resend(process.env.RESEND_API_KEY)` a nivel de módulo, pero eso rompe
+// `next build` — al recolectar page data Next evalúa este módulo y, si la key
+// no está presente en el entorno de build, el constructor lanza y el build
+// falla entero. Instanciándolo dentro de la función (memoizado) el build nunca
+// lo construye y la key solo hace falta en runtime, cuando de verdad se envía.
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 const FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
 
 function urlOrden(token: string) {
@@ -161,7 +171,7 @@ export async function enviarLinkDescarga({
     `— Carmen Machado\n${pieContactoTexto()}`;
 
   try {
-    await resend.emails.send({ from: FROM, to: email, subject: `Tu descarga está lista: ${titulo}`, html, text });
+    await getResend().emails.send({ from: FROM, to: email, subject: `Tu descarga está lista: ${titulo}`, html, text });
   } catch (err) {
     console.error("[email] No se pudo enviar el link de descarga:", err);
   }
@@ -192,7 +202,7 @@ export async function enviarOrdenRecibida({
     `— Carmen Machado\n${pieContactoTexto()}`;
 
   try {
-    await resend.emails.send({ from: FROM, to: email, subject: `Recibí tu comprobante: ${titulo}`, html, text });
+    await getResend().emails.send({ from: FROM, to: email, subject: `Recibí tu comprobante: ${titulo}`, html, text });
   } catch (err) {
     console.error("[email] No se pudo enviar el aviso de orden recibida:", err);
   }
@@ -227,7 +237,7 @@ export async function notificarAdminNuevaOrden({
     `Revísala en el panel de administración para confirmar o rechazar el pago.`;
 
   try {
-    await resend.emails.send({ from: FROM, to: adminEmail, subject: `Nueva orden por validar: ${titulo}`, html, text });
+    await getResend().emails.send({ from: FROM, to: adminEmail, subject: `Nueva orden por validar: ${titulo}`, html, text });
   } catch (err) {
     console.error("[email] No se pudo notificar al admin de la nueva orden:", err);
   }

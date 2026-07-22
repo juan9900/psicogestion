@@ -195,6 +195,17 @@ llamar a esto):
 Remitente `EMAIL_FROM` (hoy `onboarding@resend.dev` — sin dominio verificado
 en Resend, solo entrega a la dirección con la que se registró la cuenta).
 
+**Cliente Resend perezoso:** el `new Resend(RESEND_API_KEY)` se instancia
+dentro de `getResend()` (memoizado), **no** a nivel de módulo. Motivo: durante
+`next build`, al recolectar page data Next evalúa los módulos de las rutas; si
+`RESEND_API_KEY` no está en el entorno de build, un constructor a nivel de
+módulo lanza `Missing API key` y **rompe el build entero** (esto tumbó los
+deploys de Netlify hasta 2026-07). Con el cliente perezoso la key solo hace
+falta en runtime. Las env secretas (`RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+`PAYPAL_CLIENT_SECRET`, `ADMIN_EMAIL`, `EMAIL_FROM`, `NEXT_PUBLIC_SITE_URL`)
+deben estar configuradas en el hosting (Netlify) para que correos y checkout
+funcionen; ver `.env.example` para la lista completa.
+
 **Plantilla de marca:** el HTML de los tres correos usa una plantilla propia
 en `lib/email.ts` (`emailShell` + helpers `wordmark`/`eyebrow`/`boton`) con
 la estética del sitio: tarjeta blanca sobre fondo `cream`, wordmark
