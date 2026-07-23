@@ -63,6 +63,7 @@ export function BookingSection() {
   const [email, setEmail] = useState("");
   const [tel, setTel] = useState("");
   const [motivo, setMotivo] = useState("");
+  const [ubicacion, setUbicacion] = useState("");
   const [canal, setCanal] = useState("");
   const [sent, setSent] = useState(false);
 
@@ -90,7 +91,7 @@ export function BookingSection() {
     const req = ++reqRef.current;
     const supabase = createClient();
     supabase
-      .rpc("horarios_disponibles", { p_fecha: key })
+      .rpc("horarios_disponibles", { p_fecha: key, p_modalidad: modalidad.toLowerCase() })
       .then(({ data, error: rpcError }) => {
         if (req !== reqRef.current) return; // respuesta obsoleta
         if (rpcError) {
@@ -129,6 +130,15 @@ export function BookingSection() {
   const next = () => valid(step) && setStep((s) => Math.min(2, s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
 
+  // Cambiar de modalidad puede cambiar las horas disponibles (franjas por
+  // modalidad): limpiamos día/hora para que el paciente reelija y se recarguen.
+  const elegirModalidad = (m: Modalidad) => {
+    setModalidad(m);
+    setDateKey("");
+    setTime("");
+    setTimes([]);
+  };
+
   const confirm = async () => {
     if (!canConfirm || submitting) return;
     setSubmitting(true);
@@ -143,6 +153,7 @@ export function BookingSection() {
       p_telefono: tel.trim() || null,
       p_motivo: motivo.trim() || null,
       p_canal: canal || null,
+      p_ubicacion: ubicacion.trim() || null,
     });
     setSubmitting(false);
     if (rpcError) {
@@ -168,6 +179,7 @@ export function BookingSection() {
     setEmail("");
     setTel("");
     setMotivo("");
+    setUbicacion("");
     setCanal("");
     setError(null);
   };
@@ -212,13 +224,13 @@ export function BookingSection() {
                     title="Online"
                     desc="Por videollamada, desde donde estés."
                     active={modalidad === "Online"}
-                    onClick={() => setModalidad("Online")}
+                    onClick={() => elegirModalidad("Online")}
                   />
                   <ModalidadCard
                     title="Presencial"
                     desc="En consulta, cara a cara."
                     active={modalidad === "Presencial"}
-                    onClick={() => setModalidad("Presencial")}
+                    onClick={() => elegirModalidad("Presencial")}
                   />
                 </div>
                 <div className="mt-8 flex justify-end">
@@ -270,6 +282,10 @@ export function BookingSection() {
                     No quedan horas disponibles ese día. Prueba con otra fecha.
                   </p>
                 ) : (
+                  <>
+                  <p className="mb-2.5 text-[13px] text-muted">
+                    Horarios en hora de Caracas (GMT‑4).
+                  </p>
                   <div className="grid grid-cols-3 gap-2.5">
                     {times.map((t) => {
                       const on = time === t;
@@ -290,6 +306,7 @@ export function BookingSection() {
                       );
                     })}
                   </div>
+                  </>
                 )}
                 <div className="mt-8 flex justify-between">
                   <BackButton onClick={prev} />
@@ -325,6 +342,16 @@ export function BookingSection() {
                     value={tel}
                     onChange={setTel}
                   />
+                  <div className="grid gap-1">
+                    <Field
+                      placeholder="País y ciudad"
+                      value={ubicacion}
+                      onChange={setUbicacion}
+                    />
+                    <p className="px-1 text-[12px] text-muted">
+                      Para coordinar la hora por la diferencia horaria (los horarios están en hora de Caracas, GMT‑4).
+                    </p>
+                  </div>
                   <textarea
                     placeholder="Motivo de consulta (opcional)"
                     value={motivo}

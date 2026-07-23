@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   porCanal,
   resumenCitas,
+  resumenPagosPendientes,
   resumenTienda,
   serieMensual,
   topRecursos,
@@ -78,6 +79,23 @@ describe("analisis-datos", () => {
         cita({ pagado: true, monto: null }), // sin monto: no suma
       ];
       expect(resumenCitas(citas).ingresos).toBe(30);
+    });
+  });
+
+  describe("resumenPagosPendientes", () => {
+    it("sin citas devuelve cero", () => {
+      expect(resumenPagosPendientes([])).toEqual({ total: 0, monto: 0 });
+    });
+
+    it("cuenta y suma solo no canceladas, con monto y sin pagar", () => {
+      const citas = [
+        cita({ estado: "confirmada", pagado: false, monto: 50 }), // cuenta
+        cita({ estado: "pendiente", pagado: false, monto: 20 }), // cuenta
+        cita({ estado: "confirmada", pagado: true, monto: 30 }), // pagada: no
+        cita({ estado: "confirmada", pagado: false, monto: null }), // sin monto: no
+        cita({ estado: "cancelada", pagado: false, monto: 60 }), // cancelada: no
+      ];
+      expect(resumenPagosPendientes(citas)).toEqual({ total: 2, monto: 70 });
     });
   });
 
@@ -172,7 +190,7 @@ describe("analisis-datos", () => {
       ];
       expect(porCanal(citas)).toEqual([
         { canal: "Instagram", valor: 2 },
-        { canal: "Me la recomendaron", valor: 1 },
+        { canal: "Recomendación", valor: 1 },
       ]);
     });
 

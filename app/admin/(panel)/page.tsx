@@ -62,49 +62,52 @@ export default async function ResumenPage() {
         <Stat label="Órdenes pendientes" valor={ordenesPend.count ?? 0} href="/admin/ordenes" />
       </div>
 
-      <section>
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="font-serif text-[20px] text-ink">Próximas citas</h2>
-          <Link href="/admin/citas" className="text-[13px] text-brand">Ver calendario →</Link>
-        </div>
-        {!citas.length ? (
-          <p className="text-[14px] text-body">No hay citas próximas.</p>
-        ) : (
-          <div className="overflow-hidden rounded-[14px] border border-line bg-white">
-            {citas.map((c, i) => (
-              <div key={c.id} className={`flex items-center gap-3 px-4 py-3 text-[14px] ${i ? "border-t border-line" : ""}`}>
-                <span className="w-[64px] flex-none text-brand">{fechaCorta(c.fecha)}</span>
-                <span className="w-[48px] flex-none text-body">{c.hora.slice(0, 5)}</span>
-                <span className="min-w-0 flex-1 truncate text-ink">{c.nombre}</span>
-                {c.estado === "pendiente" && (
-                  <span className="flex-none whitespace-nowrap rounded-full bg-[#fdf3e2] px-2 py-0.5 text-[11px] text-[#a87b25]">por confirmar</span>
-                )}
-              </div>
-            ))}
+      {/* En desktop, ambas listas van lado a lado para aprovechar el ancho. */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-serif text-[20px] text-ink">Próximas citas</h2>
+            <Link href="/admin/citas" className="text-[13px] text-brand">Ver calendario →</Link>
           </div>
-        )}
-      </section>
+          {!citas.length ? (
+            <p className="text-[14px] text-body">No hay citas próximas.</p>
+          ) : (
+            <div className="overflow-hidden rounded-[14px] border border-line bg-white">
+              {citas.map((c, i) => (
+                <div key={c.id} className={`flex items-center gap-3 px-4 py-3 text-[14px] ${i ? "border-t border-line" : ""}`}>
+                  <span className="w-[64px] flex-none text-brand">{fechaCorta(c.fecha)}</span>
+                  <span className="w-[48px] flex-none text-body">{c.hora.slice(0, 5)}</span>
+                  <span className="min-w-0 flex-1 truncate text-ink">{c.nombre}</span>
+                  {c.estado === "pendiente" && (
+                    <span className="flex-none whitespace-nowrap rounded-full bg-[#fdf3e2] px-2 py-0.5 text-[11px] text-[#a87b25]">por confirmar</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
-      <section>
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="font-serif text-[20px] text-ink">Órdenes por revisar</h2>
-          <Link href="/admin/ordenes" className="text-[13px] text-brand">Ver órdenes →</Link>
-        </div>
-        {!ordenes.length ? (
-          <p className="text-[14px] text-body">Sin órdenes pendientes.</p>
-        ) : (
-          <div className="overflow-hidden rounded-[14px] border border-line bg-white">
-            {ordenes.map((o, i) => (
-              <div key={o.id} className={`flex items-center gap-3 px-4 py-3 text-[14px] ${i ? "border-t border-line" : ""}`}>
-                <span className="min-w-0 flex-1 truncate text-ink">{o.recursos?.titulo ?? "—"}</span>
-                <span className="hidden min-w-0 flex-1 truncate text-body sm:block">{o.comprador_nombre}</span>
-                <span className="flex-none text-right text-body">${o.monto}</span>
-                <span className="hidden w-[80px] flex-none text-right text-[12px] text-muted sm:block">{o.metodo_pago}</span>
-              </div>
-            ))}
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-serif text-[20px] text-ink">Órdenes por revisar</h2>
+            <Link href="/admin/ordenes" className="text-[13px] text-brand">Ver órdenes →</Link>
           </div>
-        )}
-      </section>
+          {!ordenes.length ? (
+            <p className="text-[14px] text-body">Sin órdenes pendientes.</p>
+          ) : (
+            <div className="overflow-hidden rounded-[14px] border border-line bg-white">
+              {ordenes.map((o, i) => (
+                <div key={o.id} className={`flex items-center gap-3 px-4 py-3 text-[14px] ${i ? "border-t border-line" : ""}`}>
+                  <span className="min-w-0 flex-1 truncate text-ink">{o.recursos?.titulo ?? "—"}</span>
+                  <span className="hidden min-w-0 flex-1 truncate text-body sm:block">{o.comprador_nombre}</span>
+                  <span className="flex-none text-right text-body">${o.monto}</span>
+                  <span className="hidden w-[80px] flex-none text-right text-[12px] text-muted sm:block">{o.metodo_pago}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

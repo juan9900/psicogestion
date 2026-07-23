@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { porCanal, resumenCitas, resumenTienda, serieMensual, topRecursos, type CitaAnalisis, type OrdenAnalisis, type RecursoAnalisis } from "./analisis-datos";
+import { porCanal, resumenCitas, resumenPagosPendientes, resumenTienda, serieMensual, topRecursos, type CitaAnalisis, type OrdenAnalisis, type RecursoAnalisis } from "./analisis-datos";
 import { AnalisisCharts } from "./AnalisisCharts";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +25,7 @@ export default async function AnalisisPage() {
 
   const datos = {
     citas: resumenCitas(citas),
+    pagosPendientes: resumenPagosPendientes(citas),
     tienda: resumenTienda(ordenes),
     serie: serieMensual(citas, ordenes),
     top: topRecursos(ordenes, recursos),

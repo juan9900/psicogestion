@@ -24,7 +24,6 @@ export const CANALES = [
   { valor: "instagram", label: "Instagram" },
   { valor: "facebook", label: "Facebook" },
   { valor: "google", label: "Búsqueda en Google" },
-  { valor: "recomendacion", label: "Me la recomendaron" },
-  { valor: "tiktok", label: "TikTok" },
+  { valor: "recomendacion", label: "Recomendación" },
   { valor: "otro", label: "Otro" },
 ] as const;

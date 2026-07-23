@@ -69,6 +69,25 @@ export function resumenCitas(citas: CitaAnalisis[]): ResumenCitas {
   return r;
 }
 
+// Consultas por cobrar: citas no canceladas, con un monto asignado y aún sin
+// pagar. Es lo que realmente falta cobrar (a diferencia de `ingresos`, que suma
+// solo lo ya pagado).
+export type ResumenPagosPendientes = {
+  total: number;
+  monto: number;
+};
+
+export function resumenPagosPendientes(citas: CitaAnalisis[]): ResumenPagosPendientes {
+  const r: ResumenPagosPendientes = { total: 0, monto: 0 };
+  for (const c of citas) {
+    if (c.estado !== "cancelada" && !c.pagado && c.monto != null) {
+      r.total += 1;
+      r.monto += c.monto;
+    }
+  }
+  return r;
+}
+
 export type ResumenTienda = {
   ventas: number;
   ingresos: number;

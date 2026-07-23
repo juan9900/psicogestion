@@ -16,7 +16,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import type { ResumenCitas, ResumenTienda, PuntoMensual, TopRecurso, PuntoCanal } from "./analisis-datos";
+import type { ResumenCitas, ResumenPagosPendientes, ResumenTienda, PuntoMensual, TopRecurso, PuntoCanal } from "./analisis-datos";
 
 // Paleta de marca (ver app/globals.css @theme) para que las gráficas combinen
 // con el resto del panel admin.
@@ -30,6 +30,7 @@ const PIE_COLORS = [BRAND, SAND, CANCEL, BRAND_LIGHT, BRAND_DARK, MUTED];
 
 type Datos = {
   citas: ResumenCitas;
+  pagosPendientes: ResumenPagosPendientes;
   tienda: ResumenTienda;
   serie: PuntoMensual[];
   top: TopRecurso[];
@@ -52,7 +53,7 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
     <section className="rounded-[14px] border border-line bg-white p-5">
       <h2 className="mb-4 font-serif text-[18px] text-ink">{title}</h2>
       <div className="w-full overflow-x-auto">
-        <div className="h-[280px] min-w-[320px]">{children}</div>
+        <div className="h-[280px] min-w-[320px] xl:h-[320px]">{children}</div>
       </div>
     </section>
   );
@@ -65,7 +66,7 @@ const moneyFmt = (v: unknown) => money(Number(v));
 const topFmt = (v: unknown, name: unknown) => (name === "ingresos" ? money(Number(v)) : Number(v));
 
 export function AnalisisCharts({ datos }: { datos: Datos }) {
-  const { citas, tienda, serie, top, canal, totalRecursos, recursosActivos } = datos;
+  const { citas, pagosPendientes, tienda, serie, top, canal, totalRecursos, recursosActivos } = datos;
   const ingresosTotales = citas.ingresos + tienda.ingresos;
 
   const porEstado = [
@@ -82,14 +83,16 @@ export function AnalisisCharts({ datos }: { datos: Datos }) {
   return (
     <div className="grid gap-8">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-5">
         <Stat label="Citas totales" valor={citas.total} />
         <Stat label="Reagendadas" valor={citas.reagendadas} />
         <Stat label="Canceladas" valor={citas.canceladas} />
+        <Stat label="Consultas por cobrar" valor={pagosPendientes.total} />
         <Stat label="Recursos (activos)" valor={`${totalRecursos} (${recursosActivos})`} />
         <Stat label="Ventas de recursos" valor={tienda.ventas} />
         <Stat label="Ingresos tienda" valor={money(tienda.ingresos)} />
         <Stat label="Ingresos citas" valor={money(citas.ingresos)} />
+        <Stat label="Monto por cobrar" valor={money(pagosPendientes.monto)} />
         <Stat label="Ingresos totales" valor={money(ingresosTotales)} />
       </div>
 

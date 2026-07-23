@@ -67,12 +67,19 @@ export async function crearCitaManual(formData: FormData) {
   const fecha = String(formData.get("fecha") ?? "").trim();
   const hora = String(formData.get("hora") ?? "").trim();
   const modalidad = String(formData.get("modalidad") ?? "online");
+  const tipo = String(formData.get("tipo") ?? "consulta");
   const email = String(formData.get("email") ?? "").trim() || null;
   const telefono = String(formData.get("telefono") ?? "").trim() || null;
   const motivo = String(formData.get("motivo") ?? "").trim() || null;
+  const duracionRaw = String(formData.get("duracion_min") ?? "").trim();
+  const duracion_min = duracionRaw ? Number(duracionRaw) : 60;
+  const montoRaw = String(formData.get("monto") ?? "").trim();
+  const metodoPago = String(formData.get("metodo_pago") ?? "").trim() || null;
+  const pagado = ["on", "true"].includes(String(formData.get("pagado") ?? ""));
 
   if (!nombre) throw new Error("El nombre es obligatorio");
   if (!fecha || !hora) throw new Error("La fecha y la hora son obligatorias");
+  if (!(duracion_min >= 5 && duracion_min <= 480)) throw new Error("La duración debe estar entre 5 y 480 minutos");
 
   const supabase = await requireAdmin();
   const { error } = await supabase.from("citas").insert({
@@ -80,9 +87,14 @@ export async function crearCitaManual(formData: FormData) {
     fecha,
     hora,
     modalidad,
+    tipo,
     email,
     telefono,
     motivo,
+    duracion_min,
+    monto: montoRaw ? Number(montoRaw) : null,
+    metodo_pago: metodoPago,
+    pagado,
     estado: "confirmada",
   });
   if (error) {
@@ -91,22 +103,27 @@ export async function crearCitaManual(formData: FormData) {
   }
   revalidatePath("/admin/citas");
   revalidatePath("/admin");
+  revalidatePath("/admin/analisis");
 }
 
 export async function actualizarDatosCita(formData: FormData) {
   const id = String(formData.get("id"));
   const nombre = String(formData.get("nombre") ?? "").trim();
   const modalidad = String(formData.get("modalidad") ?? "online");
+  const tipo = String(formData.get("tipo") ?? "consulta");
   const email = String(formData.get("email") ?? "").trim() || null;
   const telefono = String(formData.get("telefono") ?? "").trim() || null;
   const motivo = String(formData.get("motivo") ?? "").trim() || null;
+  const duracionRaw = String(formData.get("duracion_min") ?? "").trim();
+  const duracion_min = duracionRaw ? Number(duracionRaw) : 60;
 
   if (!nombre) throw new Error("El nombre es obligatorio");
+  if (!(duracion_min >= 5 && duracion_min <= 480)) throw new Error("La duración debe estar entre 5 y 480 minutos");
 
   const supabase = await requireAdmin();
   const { error } = await supabase
     .from("citas")
-    .update({ nombre, modalidad, email, telefono, motivo })
+    .update({ nombre, modalidad, tipo, email, telefono, motivo, duracion_min })
     .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/citas");
@@ -137,6 +154,90 @@ export async function alternarPagadoCita(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/citas");
   revalidatePath("/admin");
+}
+
+// Bloquea la agenda: un día, un rango de días (fecha_fin), y opcionalmente solo
+// un rango de horas (si no es "todo el día"). La RPC horarios_disponibles ya
+// excluye estas fechas/horas, así que el sitio público deja de ofrecerlas.
+export async function bloquearDia(formData: FormData) {
+  const fecha = String(formData.get("fecha") ?? "").trim();
+  const fecha_fin = String(formData.get("fecha_fin") ?? "").trim() || null;
+  const todoElDia = ["on", "true"].includes(String(formData.get("todo_el_dia") ?? ""));
+  const horaInicio = String(formData.get("hora_inicio") ?? "").trim() || null;
+  const horaFin = String(formData.get("hora_fin") ?? "").trim() || null;
+  const motivo = String(formData.get("motivo") ?? "").trim() || null;
+
+  if (!fecha) throw new Error("La fecha es obligatoria");
+  if (fecha_fin && fecha_fin < fecha) throw new Error("La fecha final no puede ser anterior a la inicial");
+
+  // Día completo → horas null (respeta el CHECK rango_bloqueo). Rango de horas →
+  // ambas obligatorias y fin > inicio.
+  const hora_inicio = todoElDia ? null : horaInicio;
+  const hora_fin = todoElDia ? null : horaFin;
+  if (!todoElDia) {
+    if (!hora_inicio || !hora_fin) throw new Error("Indica la hora de inicio y fin, o marca 'todo el día'");
+    if (hora_fin <= hora_inicio) throw new Error("La hora final debe ser mayor que la inicial");
+  }
+
+  const supabase = await requireAdmin();
+  const { error } = await supabase
+    .from("dias_bloqueados")
+    .insert({ fecha, fecha_fin, hora_inicio, hora_fin, motivo });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/citas");
+}
+
+// --- Configuración de agenda (sección /admin/configuracion) ---
+
+export async function guardarConfigAgenda(formData: FormData) {
+  const duracion = Number(String(formData.get("duracion_cita_min") ?? "").trim());
+  if (!(duracion >= 5 && duracion <= 480)) {
+    throw new Error("La duración por defecto debe estar entre 5 y 480 minutos");
+  }
+  const supabase = await requireAdmin();
+  const { error } = await supabase
+    .from("config_agenda")
+    .update({ duracion_cita_min: duracion })
+    .eq("id", 1);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/configuracion");
+}
+
+export async function agregarFranja(formData: FormData) {
+  const dia_semana = Number(String(formData.get("dia_semana") ?? ""));
+  const hora_inicio = String(formData.get("hora_inicio") ?? "").trim();
+  const hora_fin = String(formData.get("hora_fin") ?? "").trim();
+  const modalidad = String(formData.get("modalidad") ?? "").trim() || null;
+
+  if (!(dia_semana >= 0 && dia_semana <= 6)) throw new Error("Día inválido");
+  if (!hora_inicio || !hora_fin) throw new Error("Indica la hora de inicio y fin");
+  if (hora_fin <= hora_inicio) throw new Error("La hora final debe ser mayor que la inicial");
+
+  const supabase = await requireAdmin();
+  const { error } = await supabase
+    .from("franjas_disponibilidad")
+    .insert({ dia_semana, hora_inicio, hora_fin, modalidad });
+  if (error) {
+    if (error.code === "23505") throw new Error("Ya existe esa franja para ese día y modalidad");
+    throw new Error(error.message);
+  }
+  revalidatePath("/admin/configuracion");
+}
+
+export async function eliminarFranja(formData: FormData) {
+  const id = String(formData.get("id"));
+  const supabase = await requireAdmin();
+  const { error } = await supabase.from("franjas_disponibilidad").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/configuracion");
+}
+
+export async function desbloquearDia(formData: FormData) {
+  const id = String(formData.get("id"));
+  const supabase = await requireAdmin();
+  const { error } = await supabase.from("dias_bloqueados").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/citas");
 }
 
 export async function actualizarEstadoOrden(formData: FormData) {

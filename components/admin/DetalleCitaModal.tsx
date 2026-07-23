@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { actualizarEstadoCita, reagendarCita, guardarPagoCita, actualizarDatosCita } from "@/app/admin/actions";
-import { METODOS_PAGO_CITA, etiquetaMetodoPago, tituloDia, type Cita } from "./citas-filtros";
+import {
+  METODOS_PAGO_CITA,
+  etiquetaMetodoPago,
+  TIPOS_CITA,
+  etiquetaTipoCita,
+  horaFin,
+  tituloDia,
+  type Cita,
+} from "./citas-filtros";
 import { Modal } from "./Modal";
 import { BotonCancelarCita } from "./BotonCancelarCita";
 
@@ -64,10 +72,11 @@ export function EdicionCita({ cita }: { cita: Cita }) {
     return (
       <div className="grid gap-1.5">
         <div className="text-[13px] text-body">
-          {cita.modalidad}
+          {etiquetaTipoCita(cita.tipo)} · {cita.modalidad}
           {[cita.email, cita.telefono].some(Boolean) && " · "}
           {[cita.email, cita.telefono].filter(Boolean).join(" · ")}
         </div>
+        {cita.ubicacion && <div className="text-[13px] text-muted">📍 {cita.ubicacion}</div>}
         {cita.motivo && <div className="text-[13px] text-muted">{cita.motivo}</div>}
         <button
           type="button"
@@ -88,11 +97,25 @@ export function EdicionCita({ cita }: { cita: Cita }) {
         <input type="text" name="nombre" defaultValue={cita.nombre} required className={campoCls} />
       </label>
       <label className="grid gap-1 text-[12px] text-muted">
+        Tipo
+        <select name="tipo" defaultValue={cita.tipo || "consulta"} className={campoCls}>
+          {TIPOS_CITA.map((t) => (
+            <option key={t.valor} value={t.valor}>
+              {t.etiqueta}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="grid gap-1 text-[12px] text-muted">
         Modalidad
         <select name="modalidad" defaultValue={cita.modalidad} className={campoCls}>
           <option value="online">Online</option>
           <option value="presencial">Presencial</option>
         </select>
+      </label>
+      <label className="grid gap-1 text-[12px] text-muted">
+        Duración (min)
+        <input type="number" name="duracion_min" min={5} max={480} step={5} defaultValue={cita.duracion_min} className={campoCls} />
       </label>
       <label className="grid gap-1 text-[12px] text-muted">
         Email
@@ -250,7 +273,8 @@ export function DetalleCitaModal({ cita, onClose }: { cita: Cita; onClose: () =>
       <div className="grid gap-3">
         <div className="flex items-center justify-between">
           <div className="font-serif text-[17px] text-ink">
-            {tituloDia(cita.fecha)} · {cita.hora.slice(0, 5)}
+            {tituloDia(cita.fecha)} · {cita.hora.slice(0, 5)}–{horaFin(cita.hora, cita.duracion_min)}
+            <span className="ml-1 text-[13px] font-normal text-muted">({cita.duracion_min} min)</span>
           </div>
           <EstadoBadge estado={cita.estado} />
         </div>

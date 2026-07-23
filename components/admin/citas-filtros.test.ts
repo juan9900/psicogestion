@@ -5,6 +5,7 @@ import {
   citasDelDia,
   resumenDia,
   etiquetaMetodoPago,
+  horaFin,
   type Cita,
 } from "./citas-filtros";
 
@@ -19,6 +20,9 @@ function cita(overrides: Partial<Cita>): Cita {
     telefono: null,
     motivo: null,
     estado: "pendiente",
+    tipo: "consulta",
+    ubicacion: null,
+    duracion_min: 60,
     monto: null,
     metodo_pago: null,
     pagado: false,
@@ -128,6 +132,19 @@ describe("citas-filtros", () => {
     it("devuelve '—' cuando el valor es null o desconocido", () => {
       expect(etiquetaMetodoPago(null)).toBe("—");
       expect(etiquetaMetodoPago("cripto")).toBe("—");
+    });
+  });
+
+  describe("horaFin", () => {
+    it("suma la duración a la hora de inicio", () => {
+      expect(horaFin("10:00", 60)).toBe("11:00");
+      expect(horaFin("10:00:00", 90)).toBe("11:30");
+      expect(horaFin("09:15", 45)).toBe("10:00");
+    });
+
+    it("cruza la hora correctamente", () => {
+      expect(horaFin("10:45", 30)).toBe("11:15");
+      expect(horaFin("23:30", 60)).toBe("00:30"); // envuelve a 24h
     });
   });
 });

@@ -88,7 +88,7 @@ export function AdminShell({
 
       {/* Contenido: se corre a la derecha cuando el sidebar está abierto (escritorio) */}
       <div className={`transition-[padding] duration-200 ${open ? "sm:pl-[240px]" : "sm:pl-0"}`}>
-        <main className="mx-auto max-w-[860px] overflow-x-clip px-5 py-7 sm:px-8 sm:py-10">{children}</main>
+        <main className="mx-auto max-w-[1400px] overflow-x-clip px-5 py-7 sm:px-8 sm:py-10 xl:px-10">{children}</main>
       </div>
     </div>
   );

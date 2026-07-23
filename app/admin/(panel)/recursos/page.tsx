@@ -29,7 +29,7 @@ export default async function RecursosPage() {
     <div className="grid gap-8">
       <h1 className="font-serif text-[28px] text-ink">Recursos</h1>
 
-      <div className="grid gap-3">
+      <div className="grid gap-3 lg:grid-cols-2">
         {(recursos ?? []).map((r) => (
           <div key={r.id} className="rounded-[14px] border border-line bg-white p-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -76,7 +76,7 @@ export default async function RecursosPage() {
 
       <section>
         <h2 className="mb-3 font-serif text-[20px] text-ink">Nuevo recurso</h2>
-        <div className="rounded-[14px] border border-line bg-white p-4">
+        <div className="max-w-[720px] rounded-[14px] border border-line bg-white p-4">
           <RecursoForm />
         </div>
       </section>

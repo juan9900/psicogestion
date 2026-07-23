@@ -35,6 +35,7 @@ app/
     (panel)/                        route group protegido (requiere sesión + es_admin())
       layout.tsx, page.tsx (dashboard), citas/, ordenes/, pagos/, recursos/,
       analisis/                       gráficas y KPIs de citas + tienda
+      configuracion/                  agenda: duración por defecto + horario laboral
   recursos/
     page.tsx                        vitrina de recursos activos, con filtros/orden por searchParams
     filtros.ts                      parseo puro de searchParams -> filtros + mapeo a query Supabase
@@ -79,10 +80,17 @@ Migraciones en `supabase/migrations/`, en orden:
 - **`citas`**, **`config_agenda`**, **`franjas_disponibilidad`**,
   **`dias_bloqueados`**: sistema de agenda (fuera del alcance de este doc de
   tienda; ver migraciones `agenda.sql`). `citas` además tiene pago propio
-  (`monto`, `metodo_pago` — enum `metodo_pago_cita`, `pagado`) y tracking de
+  (`monto`, `metodo_pago` — enum `metodo_pago_cita`, `pagado`), tracking de
   reagendamiento (`veces_reagendada`, `ultima_reagendacion`, ver
   `20260720000000_citas_reagendamiento.sql`): reagendar solo mueve
-  fecha/hora, no registra montos.
+  fecha/hora, no registra montos; `canal` (adquisición); `tipo` (enum `tipo_cita`
+  `consulta`/`reunion`, default consulta, solo admin) y `ubicacion` (país/ciudad
+  que indica el paciente al agendar, para la diferencia horaria); y —desde
+  `20260725000000_agenda_config.sql`— `duracion_min` (int, default 60): la
+  duración propia de la cita (el admin puede agendar sesiones más largas). Esa
+  misma migración añade `franjas_disponibilidad.modalidad` (enum nullable;
+  null = ambas modalidades) y `dias_bloqueados.fecha_fin` (rango de días;
+  null = un solo día).
 
 **RLS**: todas las tablas la tienen habilitada. Lectura pública solo en lo
 estrictamente necesario (recursos activos, config_agenda/franjas,
@@ -94,9 +102,15 @@ la que Realtime no usa `postgres_changes` (ver más abajo).
 
 **RPCs `SECURITY DEFINER`** (`supabase/migrations/20260718120200_funciones.sql`):
 `es_admin()`, `crear_orden(...)` (precio siempre tomado de la BD, nunca del
-cliente), `consultar_orden(token)`, `horarios_disponibles(fecha)`,
+cliente), `consultar_orden(token)`, `horarios_disponibles(fecha, modalidad)`
+(la modalidad filtra las franjas de esa modalidad + las de "ambas"; excluye
+slots que **solapan** con una cita activa según su `duracion_min`, no solo por
+coincidencia exacta de hora; respeta bloqueos por rango de fechas/horas),
 `crear_cita(...)` (email normalizado `lower(trim(...))`, igual que
-`crear_orden`). También `reagendar_cita(id, fecha, hora)`
+`crear_orden`; recibe `p_canal` y `p_ubicacion`, valida contra la disponibilidad
+de la modalidad y guarda `duracion_min` = la duración por defecto de la config —
+la recreación de la firma en cada migración conserva su bloque `revoke/grant`).
+También `reagendar_cita(id, fecha, hora)`
 (`20260720000000_citas_reagendamiento.sql`): mueve la cita e incrementa
 `veces_reagendada` de forma atómica (evita el `col = col + 1` que PostgREST
 no permite en un `update` simple).
@@ -228,6 +242,30 @@ variables). Cada envío manda también una versión `text` plana equivalente
 | `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_EMAIL` | solo server | correos |
 | `NEXT_PUBLIC_SITE_URL` | server (arma el link de los correos) | debe apuntar al dominio real en producción |
 
+## Layout del panel admin (aprovechamiento del ancho)
+
+`components/admin/AdminShell.tsx` es el shell de todas las rutas `/admin/*`:
+sidebar cajón de 240px + `<main>`. El **único** tope de ancho del contenido vive
+ahí: `max-w-[1400px]` centrado (`mx-auto`), con padding `px-5 sm:px-8 xl:px-10`.
+Antes era `860px`, lo que dejaba mucho vacío lateral en escritorio. Para
+aprovechar el ancho recuperado, cada sección reflowea a columnas en desktop en
+vez de solo estirarse:
+- **Resumen** (`(panel)/page.tsx`): "Próximas citas" y "Órdenes por revisar" van
+  lado a lado en `lg:grid-cols-2`.
+- **Análisis** (`AnalisisCharts.tsx`): los 8 KPIs en una fila en `xl:grid-cols-8`;
+  las gráficas se quedan en `sm:grid-cols-2` (necesitan ancho para los ejes) y
+  crecen en alto en `xl` (`xl:h-[320px]`).
+- **Recursos** (`(panel)/recursos/page.tsx`): tarjetas en `lg:grid-cols-2`; el
+  form "Nuevo recurso" acotado a `max-w-[720px]` por legibilidad.
+- **Citas** / **Órdenes**: calendario y tablas se estiran solos hasta 1400px
+  (las tablas ya son `w-full` con `min-w-*`); no se fuerzan columnas.
+- **Pagos**: el form mantiene su `max-w-[560px]` — los formularios no se estiran.
+
+Principio: **tablas y gráficas** aprovechan el ancho estirándose; **formularios**
+se acotan; **listas/secciones cortas** reflowean a columnas (`lg`/`xl`, teniendo
+en cuenta los 240px del sidebar). Todo mobile-first: las clases de reflow son
+solo `lg:`/`xl:`, así que en móvil nada cambia.
+
 ## Filtros y tablas ordenables
 
 No hay un componente `<DataTable>` genérico a propósito: las tres vistas
@@ -297,13 +335,40 @@ comparte lo que es realmente idéntico entre ellas.
   Lógica pura (filtros de tabla + `citasDelDia`/`resumenDia` para el
   calendario) en `components/admin/citas-filtros.ts`.
   - **Agendar manualmente**: botón "+ Agendar" sobre el calendario abre un
-    modal con un formulario (nombre, fecha, hora, modalidad, email,
-    teléfono, motivo) que llama a la server action `crearCitaManual`. A
+    modal con un formulario (nombre, fecha, hora, **tipo**, modalidad, email,
+    teléfono, motivo y una sección de **pago** opcional: monto, método,
+    checkbox pagado) que llama a la server action `crearCitaManual`. A
     diferencia del formulario público (RPC `crear_cita`), inserta
     directamente en `public.citas` sin validar contra los horarios
     configurados — el admin puede coordinar una cita a cualquier hora; solo
     la mantiene el índice único `(fecha, hora)` de citas activas. La cita
-    manual queda `confirmada` de una vez.
+    manual queda `confirmada` de una vez. El formulario usa **submit
+    controlado** (no `action={...}`, sino `onSubmit` + `new FormData` en
+    try/catch, patrón de `RecursoForm`) para **cerrar el modal al crear con
+    éxito** (`onCreada`) — así se evita adivinar cuándo terminó la
+    revalidación.
+  - **Tipo de cita**: columna `tipo` (enum `tipo_cita`: `consulta`/`reunion`,
+    default `consulta`; migración `20260724000000_citas_tipo_ubicacion.sql`).
+    Es un dato **solo del admin**: el formulario público siempre agenda
+    'consulta' (no se expone en la RPC). Se elige en el alta manual y se edita
+    en `EdicionCita`. Etiquetas legibles vía `TIPOS_CITA`/`etiquetaTipoCita`
+    en `citas-filtros.ts`.
+  - **Duración de la cita**: el alta manual y `EdicionCita` tienen un campo
+    "Duración (min)" (default = la duración por defecto de la config, que
+    `citas/page.tsx` pasa como `duracionDefault`). Se guarda en
+    `citas.duracion_min` (`crearCitaManual`/`actualizarDatosCita`). El detalle
+    muestra el rango "10:00–11:30 (90 min)" vía el helper puro `horaFin` de
+    `citas-filtros.ts`.
+  - **Bloquear horario**: botón "Bloquear horario" junto a "+ Agendar" abre
+    `BloqueosDia.tsx` (modal con **Desde**/**Hasta** para rango de días,
+    checkbox "Todo el día" o un **rango de horas**, + motivo → server action
+    `bloquearDia`; lista de bloqueos vigentes con "Quitar" → `desbloquearDia`).
+    La RPC `horarios_disponibles` excluye esas fechas/horas (rango de fechas vía
+    `fecha_fin`), así que el sitio público deja de ofrecerlas. `citas/page.tsx`
+    trae los bloqueos y `CalendarView` **marca** en la grilla los días de día
+    completo (expandiendo el rango `fecha..fecha_fin`) y con un indicador tenue
+    los de rango de horas. `dias_bloqueados` no es legible por anon (hardening
+    20260721); estas lecturas van por el server component admin.
   - **Pago de la cita**: columnas nuevas en `citas` — `monto numeric`,
     `metodo_pago metodo_pago_cita` (enum propio: `binance`, `efectivo`,
     `pago_movil`, `zelle`; no se reutiliza el enum `metodo_pago` de la
@@ -330,6 +395,25 @@ comparte lo que es realmente idéntico entre ellas.
     `Modal`) antes de llamar a `actualizarEstadoCita` con `estado=cancelada`;
     evita cancelaciones accidentales de una acción destructiva.
 
+## Configuración de agenda (`/admin/configuracion`)
+
+Nueva sección del panel para ajustar la agenda sin tocar SQL:
+
+- **Duración por defecto**: form (patrón `pagos/page.tsx`) que actualiza
+  `config_agenda.duracion_cita_min` vía `guardarConfigAgenda` (validado 5–480).
+  Es la duración de las reservas públicas; el admin puede sobreescribirla por
+  cita al agendar.
+- **Horario laboral** (`components/admin/HorarioLaboral.tsx`, cliente): agrupa
+  `franjas_disponibilidad` por día (Lun→Dom) y muestra cada franja
+  `HH:MM–HH:MM` + chip de modalidad, con "Quitar" (`eliminarFranja`) y una fila
+  para agregar (día, desde, hasta, modalidad Ambas/Online/Presencial →
+  `agregarFranja`). `modalidad` vacía = **ambas**. La unicidad de franja incluye
+  la modalidad (índice `uq_franja_mod` con `coalesce(modalidad,'ambas')`), así
+  online y presencial pueden compartir el mismo horario o tener horarios
+  distintos. El formulario público pasa la modalidad elegida a
+  `horarios_disponibles`, de modo que las horas ofrecidas dependen de la
+  modalidad.
+
 ## Análisis (`/admin/analisis`)
 
 Vista con KPIs y gráficas (Recharts, primera dependencia de charting del
@@ -342,6 +426,10 @@ component y del componente cliente que dibuja.
   - `resumenCitas`: total, por estado (pendiente/confirmada/cancelada),
     **reagendadas** (`veces_reagendada > 0`), por modalidad, e ingresos de
     citas (`monto` sumado donde `pagado = true`).
+  - `resumenPagosPendientes`: **consultas por cobrar** — cuenta y suma el
+    `monto` de citas **no canceladas, con monto asignado y `pagado = false`**
+    (lo que falta cobrar, complemento de `ingresos`). Se muestra como KPIs
+    "Consultas por cobrar" y "Monto por cobrar".
   - `resumenTienda`: ventas e ingresos de `ordenes` en estado `pagada` o
     `entregada` (las únicas que cuentan como venta confirmada), agrupados
     también por método de pago y por categoría del recurso.

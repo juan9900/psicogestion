@@ -8,9 +8,21 @@ export type Cita = {
   telefono: string | null;
   motivo: string | null;
   estado: string;
+  tipo: string;
+  ubicacion: string | null;
+  duracion_min: number;
   monto: number | null;
   metodo_pago: string | null;
   pagado: boolean;
+};
+
+export type Bloqueo = {
+  id: string;
+  fecha: string;
+  fecha_fin: string | null; // null = un solo día
+  motivo: string | null;
+  hora_inicio: string | null;
+  hora_fin: string | null;
 };
 
 export const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -84,4 +96,34 @@ export const METODOS_PAGO_CITA: { valor: string; etiqueta: string }[] = [
 /** Etiqueta legible de un método de pago de cita, o "—" si no hay valor conocido. */
 export function etiquetaMetodoPago(valor: string | null): string {
   return METODOS_PAGO_CITA.find((m) => m.valor === valor)?.etiqueta ?? "—";
+}
+
+export const TIPOS_CITA: { valor: string; etiqueta: string }[] = [
+  { valor: "consulta", etiqueta: "Consulta" },
+  { valor: "reunion", etiqueta: "Reunión" },
+];
+
+/** Etiqueta legible de un tipo de cita, con "Consulta" como valor por defecto. */
+export function etiquetaTipoCita(valor: string | null): string {
+  return TIPOS_CITA.find((t) => t.valor === valor)?.etiqueta ?? "Consulta";
+}
+
+// Modalidades de una franja laboral. "" (valor vacío) = aplica a ambas.
+export const MODALIDADES_FRANJA: { valor: string; etiqueta: string }[] = [
+  { valor: "", etiqueta: "Ambas" },
+  { valor: "online", etiqueta: "Online" },
+  { valor: "presencial", etiqueta: "Presencial" },
+];
+
+/**
+ * Hora de fin "HH:MM" de una cita dada su hora de inicio ("HH:MM" o "HH:MM:SS")
+ * y su duración en minutos. Envuelve a 24h por seguridad (no debería cruzar
+ * medianoche en la práctica).
+ */
+export function horaFin(horaInicio: string, duracionMin: number): string {
+  const [h, m] = horaInicio.split(":").map(Number);
+  const total = (h * 60 + m + duracionMin) % (24 * 60);
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
