@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { CANALES } from "@/lib/site";
 
 const MONTHS = [
   "Enero",
@@ -62,6 +63,7 @@ export function BookingSection() {
   const [email, setEmail] = useState("");
   const [tel, setTel] = useState("");
   const [motivo, setMotivo] = useState("");
+  const [canal, setCanal] = useState("");
   const [sent, setSent] = useState(false);
 
   // Horas disponibles reales para el día elegido. Se piden a Supabase
@@ -140,6 +142,7 @@ export function BookingSection() {
       p_email: email.trim() || null,
       p_telefono: tel.trim() || null,
       p_motivo: motivo.trim() || null,
+      p_canal: canal || null,
     });
     setSubmitting(false);
     if (rpcError) {
@@ -165,6 +168,7 @@ export function BookingSection() {
     setEmail("");
     setTel("");
     setMotivo("");
+    setCanal("");
     setError(null);
   };
 
@@ -327,6 +331,19 @@ export function BookingSection() {
                     onChange={(e) => setMotivo(e.target.value)}
                     className="min-h-20 resize-y rounded-[10px] border border-line-2 px-[15px] py-[13px] text-[15px] text-ink outline-none focus:border-brand"
                   />
+                  <select
+                    value={canal}
+                    onChange={(e) => setCanal(e.target.value)}
+                    className="rounded-[10px] border border-line-2 px-[15px] py-[13px] text-[15px] outline-none transition focus:border-brand"
+                    style={{ color: canal ? "#2a2724" : "#a99f8d" }}
+                  >
+                    <option value="">¿Cómo supiste de mí? (opcional)</option>
+                    {CANALES.map((c) => (
+                      <option key={c.valor} value={c.valor}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 {error && (
                   <p className="mt-4 text-[14px] text-[#a33]">{error}</p>

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { resumenCitas, resumenTienda, serieMensual, topRecursos, type CitaAnalisis, type OrdenAnalisis, type RecursoAnalisis } from "./analisis-datos";
+import { porCanal, resumenCitas, resumenTienda, serieMensual, topRecursos, type CitaAnalisis, type OrdenAnalisis, type RecursoAnalisis } from "./analisis-datos";
 import { AnalisisCharts } from "./AnalisisCharts";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export default async function AnalisisPage() {
   const [citasRes, ordenesRes, recursosRes] = await Promise.all([
     supabase
       .from("citas")
-      .select("fecha, estado, modalidad, monto, pagado, veces_reagendada")
+      .select("fecha, estado, modalidad, monto, pagado, veces_reagendada, canal")
       .returns<CitaAnalisis[]>(),
     supabase
       .from("ordenes")
@@ -28,6 +28,7 @@ export default async function AnalisisPage() {
     tienda: resumenTienda(ordenes),
     serie: serieMensual(citas, ordenes),
     top: topRecursos(ordenes, recursos),
+    canal: porCanal(citas),
     totalRecursos: recursos.length,
     recursosActivos: recursos.filter((r) => r.activo).length,
   };

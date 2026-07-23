@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  porCanal,
   resumenCitas,
   resumenTienda,
   serieMensual,
@@ -17,6 +18,7 @@ function cita(overrides: Partial<CitaAnalisis>): CitaAnalisis {
     monto: null,
     pagado: false,
     veces_reagendada: 0,
+    canal: null,
     ...overrides,
   };
 }
@@ -154,6 +156,35 @@ describe("analisis-datos", () => {
 
     it("sin ventas devuelve arreglo vacío", () => {
       expect(topRecursos([], [])).toEqual([]);
+    });
+  });
+
+  describe("porCanal", () => {
+    it("sin citas devuelve arreglo vacío", () => {
+      expect(porCanal([])).toEqual([]);
+    });
+
+    it("agrupa por canal con su etiqueta y ordena por conteo descendente", () => {
+      const citas = [
+        cita({ canal: "instagram" }),
+        cita({ canal: "instagram" }),
+        cita({ canal: "recomendacion" }),
+      ];
+      expect(porCanal(citas)).toEqual([
+        { canal: "Instagram", valor: 2 },
+        { canal: "Me la recomendaron", valor: 1 },
+      ]);
+    });
+
+    it("agrupa null y vacío como 'Sin especificar'", () => {
+      const citas = [cita({ canal: null }), cita({ canal: "" }), cita({ canal: "  " })];
+      expect(porCanal(citas)).toEqual([{ canal: "Sin especificar", valor: 3 }]);
+    });
+
+    it("un canal desconocido conserva su valor crudo como etiqueta", () => {
+      expect(porCanal([cita({ canal: "linkedin" })])).toEqual([
+        { canal: "linkedin", valor: 1 },
+      ]);
     });
   });
 });

@@ -3,6 +3,8 @@
 // analisis-datos.test.ts). La página server component solo trae filas
 // crudas y llama a estas funciones.
 
+import { CANALES } from "@/lib/site";
+
 export type CitaAnalisis = {
   fecha: string; // YYYY-MM-DD
   estado: string; // 'pendiente' | 'confirmada' | 'cancelada'
@@ -10,6 +12,7 @@ export type CitaAnalisis = {
   monto: number | null;
   pagado: boolean;
   veces_reagendada: number;
+  canal: string | null; // valor de CANALES, o null si no se indicó
 };
 
 export type OrdenAnalisis = {
@@ -167,4 +170,28 @@ export function topRecursos(ordenes: OrdenAnalisis[], recursos: RecursoAnalisis[
   }
 
   return Array.from(porRecurso.values()).sort((a, b) => b.ingresos - a.ingresos);
+}
+
+// ¿De dónde vienen las consultas? Agrupa las citas por canal de adquisición.
+// Los valores sin canal (null o vacío) se muestran como "Sin especificar".
+const CANAL_LABEL: Record<string, string> = Object.fromEntries(
+  CANALES.map((c) => [c.valor, c.label])
+);
+const SIN_CANAL = "Sin especificar";
+
+export type PuntoCanal = {
+  canal: string; // etiqueta legible
+  valor: number; // número de citas
+};
+
+export function porCanal(citas: CitaAnalisis[]): PuntoCanal[] {
+  const conteo = new Map<string, number>();
+  for (const c of citas) {
+    const key = c.canal?.trim() ? c.canal.trim() : "";
+    conteo.set(key, (conteo.get(key) ?? 0) + 1);
+  }
+  return Array.from(conteo, ([valor, n]) => ({
+    canal: valor === "" ? SIN_CANAL : CANAL_LABEL[valor] ?? valor,
+    valor: n,
+  })).sort((a, b) => b.valor - a.valor);
 }

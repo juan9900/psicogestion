@@ -16,7 +16,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import type { ResumenCitas, ResumenTienda, PuntoMensual, TopRecurso } from "./analisis-datos";
+import type { ResumenCitas, ResumenTienda, PuntoMensual, TopRecurso, PuntoCanal } from "./analisis-datos";
 
 // Paleta de marca (ver app/globals.css @theme) para que las gráficas combinen
 // con el resto del panel admin.
@@ -33,6 +33,7 @@ type Datos = {
   tienda: ResumenTienda;
   serie: PuntoMensual[];
   top: TopRecurso[];
+  canal: PuntoCanal[];
   totalRecursos: number;
   recursosActivos: number;
 };
@@ -64,7 +65,7 @@ const moneyFmt = (v: unknown) => money(Number(v));
 const topFmt = (v: unknown, name: unknown) => (name === "ingresos" ? money(Number(v)) : Number(v));
 
 export function AnalisisCharts({ datos }: { datos: Datos }) {
-  const { citas, tienda, serie, top, totalRecursos, recursosActivos } = datos;
+  const { citas, tienda, serie, top, canal, totalRecursos, recursosActivos } = datos;
   const ingresosTotales = citas.ingresos + tienda.ingresos;
 
   const porEstado = [
@@ -183,6 +184,25 @@ export function AnalisisCharts({ datos }: { datos: Datos }) {
           )}
         </Card>
       </div>
+
+      {/* ¿De dónde vienen las consultas? — canal de adquisición de las citas. */}
+      <Card title="¿De dónde vienen las consultas?">
+        {canal.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={canal} dataKey="valor" nameKey="canal" outerRadius={90} label>
+                {canal.map((_, i) => (
+                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <p className="text-[14px] text-body">Sin citas todavía.</p>
+        )}
+      </Card>
 
       {/* Ingresos por método y categoría */}
       <div className="grid gap-6 sm:grid-cols-2">

@@ -16,3 +16,15 @@ export const navLinks = [
   { href: "/recursos", label: "Recursos" },
   { href: "/#agendar", label: "Agendar" },
 ] as const;
+
+// Canales de adquisición ("¿cómo supiste de mí?"). El `valor` se guarda en la
+// columna citas.canal; el `label` es lo que ve la paciente en el formulario y
+// el panel de análisis. Añadir un canal aquí lo habilita en ambos sitios.
+export const CANALES = [
+  { valor: "instagram", label: "Instagram" },
+  { valor: "facebook", label: "Facebook" },
+  { valor: "google", label: "Búsqueda en Google" },
+  { valor: "recomendacion", label: "Me la recomendaron" },
+  { valor: "tiktok", label: "TikTok" },
+  { valor: "otro", label: "Otro" },
+] as const;
