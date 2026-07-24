@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CANALES } from "@/lib/site";
+import { ZONA_CARACAS, convertirHora, etiquetaZona, zonaVisitante } from "@/lib/tz";
 
 const MONTHS = [
   "Enero",
@@ -67,6 +68,20 @@ export function BookingSection() {
   const [canal, setCanal] = useState("");
   const [sent, setSent] = useState(false);
 
+  // Zona horaria del visitante (se detecta tras montar para no romper la
+  // hidratación). `mostrarCaracas` alterna entre su hora local y la de Caracas.
+  const [tzVisitante, setTzVisitante] = useState(ZONA_CARACAS);
+  const [mostrarCaracas, setMostrarCaracas] = useState(false);
+  useEffect(() => {
+    setTzVisitante(zonaVisitante());
+  }, []);
+  // Si el visitante ya está en Caracas no hay nada que convertir ni togglear.
+  const enOtraZona = tzVisitante !== ZONA_CARACAS;
+  const tzMostrada = mostrarCaracas || !enOtraZona ? ZONA_CARACAS : tzVisitante;
+  // Etiqueta "HH:MM" de una hora de Caracas en la zona mostrada (+ aviso de día).
+  const etiquetaHora = (t: string) =>
+    dateKey ? convertirHora(dateKey, t, tzMostrada) : { hora: t, difDia: 0 as const };
+
   // Horas disponibles reales para el día elegido. Se piden a Supabase
   // (horarios_disponibles) para reflejar el horario laboral, los bloqueos y las
   // horas ya ocupadas — así crear_cita nunca rechaza el slot seleccionado.
@@ -118,9 +133,14 @@ export function BookingSection() {
   const dateLabel = selectedDay
     ? `${selectedDay.num} de ${MONTHS[selectedDay.month]}`
     : "—";
+  // Hora para el resumen: en la zona del visitante también, cuando difiere.
+  const horaResumen =
+    selectedDay && time && enOtraZona && dateKey
+      ? `${time} (Caracas) · ${convertirHora(dateKey, time, tzVisitante).hora} (tu hora)`
+      : time;
   const summary =
     selectedDay && time
-      ? `${dateLabel} · ${time} · ${modalidad}`
+      ? `${dateLabel} · ${horaResumen} · ${modalidad}`
       : "Selecciona día y hora";
 
   const valid = (s: number) =>
@@ -283,25 +303,66 @@ export function BookingSection() {
                   </p>
                 ) : (
                   <>
-                  <p className="mb-2.5 text-[13px] text-muted">
-                    Horarios en hora de Caracas (GMT‑4).
-                  </p>
+                  {enOtraZona ? (
+                    <>
+                      {/* Toggle: hora local del visitante ↔ hora de Caracas. */}
+                      <div className="mb-2.5 inline-flex rounded-full border border-line-2 p-0.5 text-[12px]">
+                        <button
+                          type="button"
+                          onClick={() => setMostrarCaracas(false)}
+                          className="rounded-full px-3 py-1 transition-all"
+                          style={{
+                            background: !mostrarCaracas ? "#3f8f79" : "transparent",
+                            color: !mostrarCaracas ? "#fff" : "#5a544c",
+                          }}
+                        >
+                          Mi hora — {etiquetaZona(tzVisitante)}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMostrarCaracas(true)}
+                          className="rounded-full px-3 py-1 transition-all"
+                          style={{
+                            background: mostrarCaracas ? "#3f8f79" : "transparent",
+                            color: mostrarCaracas ? "#fff" : "#5a544c",
+                          }}
+                        >
+                          Caracas (GMT‑4)
+                        </button>
+                      </div>
+                      <p className="mb-2.5 text-[13px] text-muted">
+                        {mostrarCaracas
+                          ? "Horarios en hora de Caracas (GMT‑4)."
+                          : `Horarios convertidos a tu hora local (${etiquetaZona(tzVisitante)}); en Caracas son GMT‑4.`}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mb-2.5 text-[13px] text-muted">
+                      Horarios en hora de Caracas (GMT‑4).
+                    </p>
+                  )}
                   <div className="grid grid-cols-3 gap-2.5">
                     {times.map((t) => {
                       const on = time === t;
+                      const { hora: label, difDia } = etiquetaHora(t);
                       return (
                         <button
                           key={t}
                           type="button"
                           onClick={() => setTime(t)}
-                          className="cursor-pointer rounded-[10px] border px-3 py-[9px] text-[14px] transition-all"
+                          className="relative cursor-pointer rounded-[10px] border px-3 py-[9px] text-[14px] transition-all"
                           style={{
                             borderColor: on ? "#3f8f79" : "#e0d8cc",
                             background: on ? "#3f8f79" : "#fff",
                             color: on ? "#fff" : "#5a544c",
                           }}
                         >
-                          {t}
+                          {label}
+                          {difDia !== 0 && (
+                            <span className="ml-1 align-super text-[10px] opacity-70">
+                              {difDia > 0 ? "+1 día" : "−1 día"}
+                            </span>
+                          )}
                         </button>
                       );
                     })}

@@ -413,6 +413,12 @@ Nueva sección del panel para ajustar la agenda sin tocar SQL:
   distintos. El formulario público pasa la modalidad elegida a
   `horarios_disponibles`, de modo que las horas ofrecidas dependen de la
   modalidad.
+- **Convertidor de zona horaria (público)**: `BookingSection` auto‑detecta la
+  zona del visitante (`Intl`) y muestra los horarios convertidos a su hora local
+  por defecto, con un toggle "mi hora ↔ Caracas" y un aviso "+1/−1 día" en zonas
+  lejanas. Es **solo presentación**: `crear_cita` sigue recibiendo `p_hora` en
+  hora de Caracas. Helpers puros en `lib/tz.ts` (Intl‑only; Caracas se trata como
+  offset fijo −04:00, sin DST), con tests en `lib/tz.test.ts`.
 
 ## Análisis (`/admin/analisis`)
 
