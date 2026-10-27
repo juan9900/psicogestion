@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generado por scripts/gen-redirects.mjs en cada build
+/public/_redirects
